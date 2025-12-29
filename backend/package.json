@@ -1,0 +1,25 @@
+{
+  "name": "medusa-backend",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "medusa start",
+    "develop": "medusa develop"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@medusajs/medusa": "^2.12.3",
+    "@npmcli/fs": "^5.0.0",
+    "@oclif/core": "^4.8.0",
+    "are-we-there-yet": "^4.0.2",
+    "gauge": "^5.0.2",
+    "glob": "^13.0.0",
+    "lodash.isequal": "^4.5.0",
+    "medusa-file-local": "^2.0.9",
+    "npmlog": "^7.0.1",
+    "rimraf": "^6.1.2",
+    "sqlite3": "^5.1.1"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2"
+  }
+}

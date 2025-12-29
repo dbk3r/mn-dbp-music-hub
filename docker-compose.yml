@@ -1,0 +1,52 @@
+version: "3.9"
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+  backend:
+    container_name: medusa-backend
+    build: ./backend
+    restart: always
+    ports:
+      - "9000:9000"
+    environment:
+      - MEDUSA_ADMIN_CORS=http://localhost:7001
+      - MEDUSA_STORE_CORS=http://localhost:3000
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - redis
+    command: npm start
+
+  admin:
+    container_name: medusa-admin
+    build: ./admin
+    restart: always
+    ports:
+      - "7001:7000"
+    environment:
+      - NEXT_PUBLIC_MEDUSA_BACKEND_URL=http://backend:9000
+    volumes:
+      - ./admin:/app
+    depends_on:
+      - backend
+    command: yarn start
+
+  frontend:
+    container_name: nextjs-frontend
+    build: ./frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_MEDUSA_BACKEND_URL=http://backend:9000
+    volumes:
+      - ./frontend:/app
+    depends_on:
+      - backend
+    command: npm run dev
