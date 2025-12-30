@@ -1,1 +1,7 @@
 node_modules/
+*.sst
+*.meta
+chunks/
+*_events_*
+static/
+types/

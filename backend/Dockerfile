@@ -1,12 +1,11 @@
 FROM node:alpine
 
-WORKDIR /app
+WORKDIR /hub
+COPY dbp-music-hub-backend/package*.json /hub/
 
-COPY package.json ./
 RUN npm install
-
-COPY . .
+COPY dbp-music-hub-backend /hub/
 
 EXPOSE 9000
 
-CMD ["npm", "start"]
+CMD ["npm", "run", "dev"]

@@ -1,4 +1,24 @@
 services:
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: medusa
+      POSTGRES_PASSWORD: medusa
+      POSTGRES_DB: medusa
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medusa"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+         
   redis:
     image: redis:7-alpine
     container_name: redis
@@ -12,31 +32,18 @@ services:
     restart: always
     ports:
       - "9000:9000"
-    environment:
-      - MEDUSA_ADMIN_CORS=http://admin:7001
-      - MEDUSA_STORE_CORS=http://frontend:3000
-      - REDIS_URL=redis://redis:6379
+          
     volumes:
-      - ./backend:/app
-      - /app/node_modules
+      - ./backend/.env:/hub/.env
+      - ./backend/dbp-music-hub-backend/src:/hub/src
+      
     depends_on:
-      - redis
-    command: npm start
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+    command: sh -c "npm run dev"
 
-  admin:
-    container_name: medusa-admin
-    build: ./admin
-    restart: always
-    ports:
-      - "7001:7000"
-    environment:
-      - NEXT_PUBLIC_MEDUSA_BACKEND_URL=http://backend:9000
-    volumes:
-      - ./admin:/app
-      - /app/node_modules
-    depends_on:
-      - backend
-    command: yarn start
 
   frontend:
     container_name: nextjs-frontend
@@ -47,8 +54,12 @@ services:
     environment:
       - NEXT_PUBLIC_MEDUSA_BACKEND_URL=http://backend:9000
     volumes:
-      - ./frontend:/app      
-      - /app/node_modules
+      - ./frontend:/app    
+      - /app/node_modules  
+      
     depends_on:
       - backend
-    command: npm run dev
+    command: sh -c "npm run dev"
+
+volumes:
+  pgdata: 
