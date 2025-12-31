@@ -1,65 +1,66 @@
 services:
-
   postgres:
-    image: postgres:15-alpine
-    container_name: postgres
-    restart: always
+    image: postgres:15
     environment:
       POSTGRES_USER: medusa
       POSTGRES_PASSWORD: medusa
       POSTGRES_DB: medusa
+    volumes:
+      - pg_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U medusa"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-         
+
   redis:
-    image: redis:7-alpine
-    container_name: redis
-    restart: always
+    image: redis:7
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
 
   backend:
-    container_name: medusa-backend
-    build: ./backend
-    restart: always
+    image: node:20
+    working_dir: /app
+    command: sh -c "yarn install && yarn build && yarn start"
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgres://medusa:medusa@postgres:5432/medusa
+      REDIS_URL: redis://redis:6379
+      MEDUSA_ADMIN_CORS: http://localhost:7000
+      MEDUSA_STORE_CORS: http://localhost:3000
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./backend:/app
     ports:
       - "9000:9000"
-          
-    volumes:
-      - ./backend/.env:/hub/.env
-      - ./backend/dbp-music-hub-backend/src:/hub/src
-      
-    depends_on:
-      redis:
-        condition: service_started
-      postgres:
-        condition: service_healthy
-    command: sh -c "npm run dev"
-
 
   frontend:
-    container_name: nextjs-frontend
-    build: ./frontend
-    restart: always
-    ports:
-      - "3000:3000"
+    image: node:20
+    working_dir: /app
+    command: sh -c "yarn install && yarn dev"
     environment:
-      - NEXT_PUBLIC_MEDUSA_BACKEND_URL=http://backend:9000
-    volumes:
-      - ./frontend:/app    
-      - /app/node_modules  
-      
+      NEXT_PUBLIC_MEDUSA_BACKEND_URL: http://backend:9000
     depends_on:
       - backend
-    command: sh -c "npm run dev"
+    volumes:
+      - ./frontend:/app
+    ports:
+      - "3000:3000"
+
+  admin:
+    image: node:20
+    working_dir: /app
+    command: sh -c "yarn install && yarn dev"
+    environment:
+      NEXT_PUBLIC_MEDUSA_BACKEND_URL: http://backend:9000
+    depends_on:
+      - backend
+    volumes:
+      - ./admin:/app
+    ports:
+      - "7000:7000"
 
 volumes:
-  pgdata: 
+  pg_data:
+  redis_data:
