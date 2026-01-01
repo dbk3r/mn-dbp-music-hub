@@ -20,18 +20,20 @@ services:
   backend:
     image: node:20
     working_dir: /app
-    command: sh -c "yarn install && yarn build && yarn start"
+    command: sh -c "yarn install && yarn build && yarn dev"
     environment:
       NODE_ENV: development
-      DATABASE_URL: postgres://medusa:medusa@postgres:5432/medusa
+      DATABASE_URL: postgres://medusa:medusa@postgres:5432/medusa?sslmode=disable
       REDIS_URL: redis://redis:6379
       MEDUSA_ADMIN_CORS: http://localhost:7000
       MEDUSA_STORE_CORS: http://localhost:3000
+      PGSSLMODE: disable
     depends_on:
       - postgres
       - redis
     volumes:
       - ./backend:/app
+
     ports:
       - "9000:9000"
 
@@ -59,7 +61,7 @@ services:
     volumes:
       - ./admin:/app
     ports:
-      - "7000:7000"
+      - "7001:7000"
 
 volumes:
   pg_data:

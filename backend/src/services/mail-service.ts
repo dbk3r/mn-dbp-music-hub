@@ -1,6 +1,6 @@
 import nodemailer from "nodemailer"
 
-export async function sendPinMail(to: string, pin: string) {
+export async function sendPinMail(to: string, pin: string): Promise<void> {
   const transporter = nodemailer.createTransport({
     host: "smtp.ethereal.email", // Demo/Tests: https://ethereal.email
     port: 587,

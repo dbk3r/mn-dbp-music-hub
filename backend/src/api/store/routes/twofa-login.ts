@@ -1,12 +1,17 @@
-import { Router } from "express"
+
+import { Router, Request } from "express"
 import crypto from "crypto"
-import { sendPinMail } from "../../services/mail-service"
+import { sendPinMail } from "../../../services/mail-service"
+
+interface ScopeRequest extends Request {
+  scope: any
+}
 
 const router = Router()
 
 router.post("/store/auth/init", async (req, res) => {
   const { email, password } = req.body
-  const customerService = req.scope.resolve("customerService")
+  const customerService = (req as ScopeRequest).scope.resolve("customerService")
   const customer = await customerService.retrieveByEmail(email).catch(()=>null)
   if (!customer || !(await customerService.validatePassword(customer.id, password)))
     return res.status(401).json({ error: "Wrong credentials" })

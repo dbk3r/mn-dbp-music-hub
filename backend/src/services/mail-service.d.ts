@@ -1,0 +1,1 @@
+export declare function sendPinMail(to: string, pin: string): Promise<void>;
