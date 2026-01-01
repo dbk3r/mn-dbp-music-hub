@@ -1,10 +1,20 @@
 import React, { useState, useEffect } from "react"
 
-type SearchBarProps = {
-  onSearch: (values: any) => void
+type SearchValues = {
+  title: string
+  artist: string
+  category: string
+  tag: string
+  priceMin: string
+  priceMax: string
+  licenseModel: string
 }
 
-const initialFields = {
+type SearchBarProps = {
+  onSearch: (values: SearchValues) => void
+}
+
+const initialFields: SearchValues = {
   title: "",
   artist: "",
   category: "",
@@ -15,25 +25,24 @@ const initialFields = {
 }
 
 export default function SearchBar({ onSearch }: SearchBarProps) {
-  const [values, setValues] = useState(initialFields)
+  const [values, setValues] = useState<SearchValues>(initialFields)
   const [collapsed, setCollapsed] = useState(false)
   const [categories, setCategories] = useState<string[]>([])
   const [tags, setTags] = useState<string[]>([])
   const [licenseModels, setLicenseModels] = useState<string[]>([])
-
   // Kategorien, Tags und Lizenzmodelle vom Backend laden
   useEffect(() => {
-    fetch("/api/categories")
+    fetch("/custom/categories", { cache: "no-store" })
       .then(r => r.json())
       .then(data => setCategories(Array.isArray(data) ? data : []))
       .catch(()=>setCategories([]))
 
-    fetch("/api/tags")
+    fetch("/custom/tags", { cache: "no-store" })
       .then(r => r.json())
       .then(data => setTags(Array.isArray(data) ? data : []))
       .catch(()=>setTags([]))
 
-    fetch("/api/license-models")
+    fetch("/custom/license-models", { cache: "no-store" })
       .then(r => r.json())
       .then(data => setLicenseModels(Array.isArray(data) ? data : []))
       .catch(()=>setLicenseModels([]))

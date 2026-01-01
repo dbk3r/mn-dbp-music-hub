@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
-import { AppDataSource } from "../../../datasource/data-source";
-import { Category } from "../../../models/category";
+import { AppDataSource } from "../../datasource/data-source";
+import { Category } from "../../models/category";
 
 export const getCategories = async (req: Request, res: Response) => {
   const repo = AppDataSource.getRepository(Category);

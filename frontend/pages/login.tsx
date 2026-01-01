@@ -11,7 +11,7 @@ export default function LoginPage() {
     e.preventDefault()
     fetch("http://localhost:9000/store/auth/init", {
       method: "POST",
-      headers: {"Content-Type":"application/json"},
+      headers: {"Content-Type":"application/json", "x-publishable-api-key": process.env.NEXT_PUBLIC_API_KEY},
       body: JSON.stringify({ email, password }),
       credentials: 'include'
     })
@@ -27,7 +27,7 @@ export default function LoginPage() {
     e.preventDefault()
     fetch("http://localhost:9000/store/auth/verify-pin", {
       method: "POST",
-      headers: {"Content-Type":"application/json"},
+      headers: {"Content-Type":"application/json","x-publishable-api-key": process.env.NEXT_PUBLIC_API_KEY},
       body: JSON.stringify({ email, pin }),
       credentials: 'include'
     })

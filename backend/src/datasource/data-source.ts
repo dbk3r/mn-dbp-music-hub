@@ -1,15 +1,18 @@
 import { DataSource } from "typeorm"
 import * as dotenv from "dotenv"
+import path from "path"
 import { Customer } from "../models/customer"
 import { Category } from "../models/category"
 import { Tag } from "../models/tag"
+import { LicenseModel } from "../models/license-model"
+import { AudioFile } from "../models/audio-file"
 
 dotenv.config({ path: process.cwd() + "/.env" })
 
 export const AppDataSource = new DataSource({
   type: "postgres",
   url: process.env.DATABASE_URL,
-  entities: [Customer, Category, Tag],
-  migrations: [process.cwd() + "/backend/src/migrations/*.{ts,js}"],
+  entities: [Customer, Category, Tag, LicenseModel, AudioFile],
+  migrations: [path.join(__dirname, "..", "migrations", "*.{ts,js}")],
   synchronize: false,
 })

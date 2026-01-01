@@ -25,14 +25,16 @@ services:
       NODE_ENV: development
       DATABASE_URL: postgres://medusa:medusa@postgres:5432/medusa?sslmode=disable
       REDIS_URL: redis://redis:6379
-      MEDUSA_ADMIN_CORS: http://localhost:7000
-      MEDUSA_STORE_CORS: http://localhost:3000
+      STORE_CORS: http://localhost:3000
+      ADMIN_CORS: http://localhost:5173,http://localhost:9000
+      AUTH_CORS: http://localhost:5173,http://localhost:9000,http://localhost:8000
       PGSSLMODE: disable
     depends_on:
       - postgres
       - redis
     volumes:
       - ./backend:/app
+      - backend_uploads:/app/uploads
 
     ports:
       - "9000:9000"
@@ -40,7 +42,7 @@ services:
   frontend:
     image: node:20
     working_dir: /app
-    command: sh -c "yarn install && yarn dev"
+    command: sh -c "yarn install && yarn dev -- -H 0.0.0.0 -p 3000"
     environment:
       NEXT_PUBLIC_MEDUSA_BACKEND_URL: http://backend:9000
     depends_on:
@@ -53,9 +55,11 @@ services:
   admin:
     image: node:20
     working_dir: /app
-    command: sh -c "yarn install && yarn dev"
+    command: sh -c "yarn install && yarn dev -- -H 0.0.0.0 -p 7000"
     environment:
       NEXT_PUBLIC_MEDUSA_BACKEND_URL: http://backend:9000
+      NEXT_PUBLIC_BASE_PATH: /dbp-admin
+      MEDUSA_BACKEND_INTERNAL_URL: http://backend:9000
     depends_on:
       - backend
     volumes:
@@ -63,6 +67,17 @@ services:
     ports:
       - "7001:7000"
 
+  haproxy:
+    image: haproxy:2.9
+    depends_on:
+      - frontend
+      - admin
+    ports:
+      - "80:80"
+    volumes:
+      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+
 volumes:
   pg_data:
   redis_data:
+  backend_uploads:

@@ -2,11 +2,22 @@ import { MigrationInterface, QueryRunner, Table } from "typeorm";
 
 export class AddCategory1670000000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
+    const has = await queryRunner.hasTable("category");
+    if (has) {
+      return;
+    }
+
     await queryRunner.createTable(
       new Table({
         name: "category",
         columns: [
-          { name: "id", type: "int", isPrimary: true, isGenerated: true, generationStrategy: "increment" },
+          {
+            name: "id",
+            type: "int",
+            isPrimary: true,
+            isGenerated: true,
+            generationStrategy: "increment",
+          },
           { name: "name", type: "varchar" },
         ],
       })

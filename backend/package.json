@@ -14,6 +14,7 @@
   ],
   "scripts": {
     "migrate": "dotenv -e .env -- medusa db:migrate",
+    "migrate:custom": "dotenv -e .env -- yarn typeorm migration:run -d ./src/datasource/data-source.ts",
     "typeorm": "typeorm-ts-node-commonjs",
     "build": "medusa build",
     "seed": "medusa exec ./src/scripts/seed.ts",

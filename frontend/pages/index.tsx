@@ -10,7 +10,11 @@ export default function MainPage() {
   const [cart,setCart] = useState([])
   const [showCart,setShowCart] = useState(false)
   function handleSearch(vals) {
-    fetch(`/api/search?${new URLSearchParams(vals)}`)
+    fetch(`/api/search?${new URLSearchParams(vals)}`, {
+      headers: {
+        "x-publishable-api-key": process.env.NEXT_PUBLIC_API_KEY
+      }
+    })
       .then(r=>r.json())
       .then(data=>setResults(data.results||[]))
   }
