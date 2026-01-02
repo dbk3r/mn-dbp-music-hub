@@ -1,4 +1,5 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
+import { In } from "typeorm"
 import { AppDataSource } from "../../../../datasource/data-source"
 import { AudioFile } from "../../../../models/audio-file"
 import { Category } from "../../../../models/category"
@@ -78,11 +79,9 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const licenseRepo = AppDataSource.getRepository(LicenseModel)
 
   const [categories, tags, licenses] = await Promise.all([
-    categoryIds.length ? categoryRepo.findBy({ id: categoryIds as any } as any) : Promise.resolve([]),
-    tagIds.length ? tagRepo.findBy({ id: tagIds as any } as any) : Promise.resolve([]),
-    licenseIds.length
-      ? licenseRepo.findBy({ id: licenseIds as any } as any)
-      : Promise.resolve([]),
+    categoryIds.length ? categoryRepo.findBy({ id: In(categoryIds) }) : Promise.resolve([]),
+    tagIds.length ? tagRepo.findBy({ id: In(tagIds) }) : Promise.resolve([]),
+    licenseIds.length ? licenseRepo.findBy({ id: In(licenseIds) }) : Promise.resolve([]),
   ])
 
   const categoryById = new Map(categories.map((c) => [c.id, c.name]))

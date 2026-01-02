@@ -33,6 +33,7 @@ function formatMs(ms: number | null | undefined) {
 
 export default function AudioSearchResultCard({ item, onSelect, onAddToCart }: AudioSearchResultCardProps) {
   const [popupOpen, setPopupOpen] = useState(false)
+  const [isHovered, setIsHovered] = useState(false)
   const artist = item.artist?.trim() ? item.artist : "Unbekannter Künstler"
   const year = item.release_year ? String(item.release_year) : "–"
   const dur = formatMs(item.duration_ms)
@@ -40,39 +41,35 @@ export default function AudioSearchResultCard({ item, onSelect, onAddToCart }: A
 
   return (
     <div
+      onClick={onSelect}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       style={{
         width: "100%",
         display: "flex",
         alignItems: "center",
-        background: "#fff",
+        justifyContent: "space-between",
+        background: isHovered ? "var(--card-hover, #252525)" : "var(--card-bg, #1a1a1a)",
         borderRadius: 8,
-        border: "1px solid #eee",
+        border: isHovered ? "1px solid var(--primary, #0070f3)" : "1px solid var(--card-border, #2a2a2a)",
         margin: "1em 0",
-        padding: 16,
+        padding: 20,
+        cursor: "pointer",
+        transition: "all 0.2s ease",
+        boxShadow: isHovered ? "0 4px 12px rgba(0, 112, 243, 0.15)" : "none",
+        boxSizing: "border-box",
       }}
     >
-      <button
-        type="button"
-        onClick={onSelect}
-        style={{
-          flex: 1,
-          minWidth: 0,
-          textAlign: "left",
-          background: "transparent",
-          border: "none",
-          padding: 0,
-          cursor: "pointer",
-        }}
-      >
-        <div style={{ fontWeight: 700, fontSize: 16, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 700, fontSize: 18, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: "var(--foreground, #ededed)" }}>
           {item.title}
         </div>
-        <div style={{ color: "#666" }}>{artist}</div>
-        <div style={{ color: "#999", fontSize: 13, marginTop: 4 }}>Jahr: {year} · Länge: {dur}</div>
+        <div style={{ color: "var(--text-muted, #888)", marginTop: 4 }}>{artist}</div>
+        <div style={{ color: "var(--text-muted, #888)", fontSize: 13, marginTop: 6 }}>Jahr: {year} · Länge: {dur}</div>
         {metaParts.length ? (
-          <div style={{ color: "#999", fontSize: 13, marginTop: 4 }}>{metaParts.join(" · ")}</div>
+          <div style={{ color: "var(--text-muted, #888)", fontSize: 13, marginTop: 4 }}>{metaParts.join(" · ")}</div>
         ) : null}
-      </button>
+      </div>
 
       <button
         type="button"
@@ -81,33 +78,14 @@ export default function AudioSearchResultCard({ item, onSelect, onAddToCart }: A
           setPopupOpen(true)
         }}
         title="In den Warenkorb"
+        className="btn-success"
         style={{
-          marginLeft: 12,
-          border: "1px solid #eee",
-          background: "#fafafa",
-          borderRadius: 8,
-          padding: "10px 12px",
-          cursor: "pointer",
+          marginLeft: 16,
+          padding: "12px 20px",
+          fontSize: 16,
         }}
       >
-        🛒
-      </button>
-
-      <button
-        type="button"
-        onClick={onSelect}
-        style={{
-          marginLeft: 12,
-          border: "1px solid #eee",
-          background: "#fafafa",
-          borderRadius: 8,
-          padding: "10px 12px",
-          cursor: "pointer",
-          fontWeight: 700,
-        }}
-        title="Abspielen"
-      >
-        ▶
+        🛒 In den Warenkorb
       </button>
 
       {popupOpen && (

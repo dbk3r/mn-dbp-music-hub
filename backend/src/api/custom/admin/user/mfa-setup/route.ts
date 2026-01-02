@@ -3,8 +3,8 @@ import jwt from "jsonwebtoken"
 import { authenticator } from "otplib"
 import QRCode from "qrcode"
 import { setAdminCors } from "../../_utils"
-import { AppDataSource } from "../../../../datasource/data-source"
-import { User } from "../../../../models/user"
+import { AppDataSource } from "../../../../../datasource/data-source"
+import { User } from "../../models"
 
 const JWT_SECRET = process.env.JWT_SECRET || "supersecret"
 

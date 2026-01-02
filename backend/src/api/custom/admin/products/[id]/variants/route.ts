@@ -1,8 +1,7 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-import { ensureDataSource, setAdminCors } from "../../_utils"
-import { ProductVariant } from "../../../../../models/product-variant"
-import { Product } from "../../../../../models/product"
-import { LicenseModel } from "../../../../../models/license-model"
+import { In } from "typeorm"
+import { ensureDataSource, setAdminCors } from "../../../_utils"
+import { Product, ProductVariant, LicenseModel } from "../../../models"
 
 async function readJsonBody(req: MedusaRequest): Promise<any> {
   const chunks: Buffer[] = []
@@ -34,7 +33,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const variants = await variantRepo.find({ where: { productId } as any, order: { id: "ASC" } as any })
 
   const licenseIds = Array.from(new Set(variants.map((v) => v.licenseModelId).filter((id) => Number.isFinite(id))))
-  const licenses = licenseIds.length ? await licenseRepo.findBy({ id: licenseIds as any } as any) : []
+  const licenses = licenseIds.length ? await licenseRepo.findBy({ id: In(licenseIds) } as any) : []
   const licenseById = new Map(licenses.map((l) => [l.id, l]))
 
   const items = variants.map((v) => {

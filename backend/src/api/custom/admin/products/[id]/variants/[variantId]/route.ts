@@ -1,6 +1,6 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-import { ensureDataSource, setAdminCors } from "../../../_utils"
-import { ProductVariant } from "../../../../../../models/product-variant"
+import { ensureDataSource, setAdminCors } from "../../../../_utils"
+import { ProductVariant } from "../../../../models"
 
 async function readJsonBody(req: MedusaRequest): Promise<any> {
   const chunks: Buffer[] = []
@@ -52,7 +52,7 @@ export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
     return res.status(400).json({ message: "invalid variant id" })
   }
 
-  const body = await readJsonBody(req).catch(() => null)
+  const body = (req as any).body ?? (await readJsonBody(req).catch(() => null))
   if (!body) {
     return res.status(400).json({ message: "invalid body" })
   }

@@ -1,6 +1,6 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-import { ensureDataSource, setAdminCors } from "../_utils"
-import { Product } from "../../../../models/product"
+import { ensureDataSource, setAdminCors } from "../../_utils"
+import { Product } from "../../models"
 
 async function readJsonBody(req: MedusaRequest): Promise<any> {
   const chunks: Buffer[] = []

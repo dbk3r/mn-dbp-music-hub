@@ -194,7 +194,7 @@ export default function MainPage() {
         }
       />
       <SearchBar onSearch={handleSearch} />
-      <div style={{ maxWidth: 700, margin: "2em auto 0", paddingBottom: selected ? 220 : 24 }}>
+      <div style={{ maxWidth: "100%", width: "100%", margin: "2em auto 0", paddingLeft: 24, paddingRight: 24, paddingBottom: selected ? 220 : 24, boxSizing: "border-box" }}>
         {results.map((item) => (
           <AudioSearchResultCard
             key={item.id}

@@ -1,8 +1,8 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import path from "path"
 import fs from "fs/promises"
-import { ensureDataSource, setAdminCors } from "../../../../../_utils"
-import { VariantFile } from "../../../../../../../../models/variant-file"
+import { ensureDataSource, setAdminCors } from "../../../../../../_utils"
+import { VariantFile } from "../../../../../../models"
 
 export async function OPTIONS(req: MedusaRequest, res: MedusaResponse) {
   setAdminCors(res)

@@ -1,11 +1,8 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
+import { In } from "typeorm"
 import { ensureDataSource, setAdminCors } from "../_utils"
-import { Product } from "../../../../models/product"
-import { ProductVariant } from "../../../../models/product-variant"
-import { AudioFile } from "../../../../models/audio-file"
-import { Category } from "../../../../models/category"
-import { Tag } from "../../../../models/tag"
-import { LicenseModel } from "../../../../models/license-model"
+import { Product, ProductVariant, AudioFile, Category, Tag, LicenseModel } from "../models"
+import { ensureProductForAudio } from "./_ensure-product"
 
 export async function OPTIONS(req: MedusaRequest, res: MedusaResponse) {
   setAdminCors(res)
@@ -37,9 +34,9 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   )
 
   const [audios, categories, tags, allVariants] = await Promise.all([
-    audioIds.length ? audioRepo.findBy({ id: audioIds as any } as any) : Promise.resolve([]),
-    categoryIds.length ? categoryRepo.findBy({ id: categoryIds as any } as any) : Promise.resolve([]),
-    tagIds.length ? tagRepo.findBy({ id: tagIds as any } as any) : Promise.resolve([]),
+    audioIds.length ? audioRepo.findBy({ id: In(audioIds as any) } as any) : Promise.resolve([]),
+    categoryIds.length ? categoryRepo.findBy({ id: In(categoryIds as any) } as any) : Promise.resolve([]),
+    tagIds.length ? tagRepo.findBy({ id: In(tagIds as any) } as any) : Promise.resolve([]),
     variantRepo.find({ order: { id: "ASC" } as any }),
   ])
 
@@ -56,7 +53,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   }
 
   const licenseIds = Array.from(new Set(allVariants.map((v) => v.licenseModelId).filter((id) => Number.isFinite(id))))
-  const licenses = licenseIds.length ? await licenseRepo.findBy({ id: licenseIds as any } as any) : []
+  const licenses = licenseIds.length ? await licenseRepo.findBy({ id: In(licenseIds as any) } as any) : []
   const licenseById = new Map(licenses.map((l) => [l.id, l]))
 
   const items = products.map((p) => {
@@ -116,44 +113,63 @@ async function readJsonBody(req: MedusaRequest): Promise<any> {
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   setAdminCors(res)
 
-  const body = await readJsonBody(req).catch(() => null)
-  if (!body || typeof body.audio_file_id !== "number") {
+  // body can be pre-parsed by Medusa's json middleware; fall back to manual read otherwise
+  const body = (req as any).body ?? (await readJsonBody(req).catch(() => null))
+  const audioId = Number(body?.audio_file_id ?? body?.audioFileId)
+
+  if (!Number.isFinite(audioId)) {
     return res.status(400).json({ message: "audio_file_id required" })
   }
 
-  const ds = await ensureDataSource()
-  const productRepo = ds.getRepository(Product)
-  const audioRepo = ds.getRepository(AudioFile)
+  const categoryId =
+    typeof body?.category_id === "number" ? body?.category_id : typeof body?.categoryId === "number" ? body?.categoryId : null
 
-  const audio = await audioRepo.findOne({ where: { id: body.audio_file_id } as any })
-  if (!audio) {
+  const tagIds = Array.isArray(body?.tag_ids)
+    ? body?.tag_ids
+    : Array.isArray(body?.tagIds)
+      ? body?.tagIds
+      : null
+
+  const licenseIds = Array.isArray(body?.license_model_ids)
+    ? body?.license_model_ids
+    : Array.isArray(body?.licenseModelIds)
+      ? body?.licenseModelIds
+      : null
+
+  // New: accept explicit variant data
+  const variants = Array.isArray(body?.variants) ? body?.variants : null
+
+  const result = await ensureProductForAudio(audioId, {
+    title: body?.title,
+    description: body?.description,
+    status: body?.status ?? "draft",
+    categoryId,
+    tagIds,
+    licenseModelIds: licenseIds,
+    variants,
+  })
+
+  if (!result.product) {
     return res.status(404).json({ message: "audio file not found" })
   }
 
-  const existing = await productRepo.findOne({ where: { audioFileId: body.audio_file_id } as any })
-  if (existing) {
-    return res.status(409).json({ message: "product already exists for this audio file" })
-  }
+  const statusCode = result.created ? 201 : 200
 
-  const product = productRepo.create({
-    audioFileId: body.audio_file_id,
-    title: String(body.title ?? audio.title),
-    description: body.description != null ? String(body.description) : audio.description,
-    status: body.status ?? "draft",
-    categoryId: typeof body.category_id === "number" ? body.category_id : audio.categoryId,
-    tagIds: Array.isArray(body.tag_ids) ? body.tag_ids : audio.tagIds,
-  })
+  const ds = await ensureDataSource()
+  const variantRepo = ds.getRepository(ProductVariant)
+  const createdVariants = await variantRepo.findBy({ productId: result.product.id } as any)
 
-  await productRepo.save(product)
-
-  return res.json({
-    id: product.id,
-    audio_file_id: product.audioFileId,
-    title: product.title,
-    description: product.description,
-    status: product.status,
-    category_id: product.categoryId,
-    tag_ids: product.tagIds,
-    created_at: product.createdAt?.toISOString?.() ?? String(product.createdAt),
+  return res.status(statusCode).json({
+    id: result.product.id,
+    audio_file_id: result.product.audioFileId,
+    title: result.product.title,
+    description: result.product.description,
+    status: result.product.status,
+    category_id: result.product.categoryId,
+    tag_ids: result.product.tagIds,
+    created_at: result.product.createdAt?.toISOString?.() ?? String(result.product.createdAt),
+    variants_created: result.variantsCreated,
+    variants: createdVariants.map((v) => ({ id: v.id, name: v.name, price_cents: v.priceCents, status: v.status })),
+    created: result.created,
   })
 }

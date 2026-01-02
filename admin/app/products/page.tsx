@@ -1,6 +1,7 @@
 "use client"
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import { adminApiUrl } from "../_lib/api"
 
 type Product = {
   id: number
@@ -32,7 +33,7 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch("/api/products")
+    fetch(adminApiUrl("/products"))
       .then((r) => r.json())
       .then((data) => setProducts(Array.isArray(data.items) ? data.items : []))
       .finally(() => setLoading(false))
@@ -58,7 +59,7 @@ export default function ProductsPage() {
       ) : (
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
-            <tr style={{ borderBottom: "2px solid #ddd", textAlign: "left" }}>
+            <tr style={{ textAlign: "left" }}>
               <th style={{ padding: "12px 8px" }}>ID</th>
               <th style={{ padding: "12px 8px" }}>Titel</th>
               <th style={{ padding: "12px 8px" }}>Status</th>
@@ -69,30 +70,23 @@ export default function ProductsPage() {
           </thead>
           <tbody>
             {products.map((p) => (
-              <tr key={p.id} style={{ borderBottom: "1px solid #eee" }}>
+              <tr key={p.id}>
                 <td style={{ padding: "12px 8px" }}>{p.id}</td>
                 <td style={{ padding: "12px 8px" }}>
                   <div style={{ fontWeight: 600 }}>{p.title}</div>
                   {p.audio?.artist && (
-                    <div style={{ fontSize: 13, color: "#666" }}>{p.audio.artist}</div>
+                    <div className="text-muted" style={{ fontSize: 13 }}>{p.audio.artist}</div>
                   )}
                 </td>
                 <td style={{ padding: "12px 8px" }}>
-                  <span
-                    style={{
-                      padding: "4px 8px",
-                      borderRadius: 4,
-                      fontSize: 12,
-                      background: p.status === "draft" ? "#ffd" : "#dfd",
-                    }}
-                  >
+                  <span className={`badge badge-${p.status}`}>
                     {p.status}
                   </span>
                 </td>
                 <td style={{ padding: "12px 8px" }}>{p.category?.name ?? "–"}</td>
                 <td style={{ padding: "12px 8px" }}>
                   {p.variants.length === 0 ? (
-                    <span style={{ color: "#999" }}>Keine</span>
+                    <span className="text-muted">Keine</span>
                   ) : (
                     <div>
                       {p.variants.map((v) => (

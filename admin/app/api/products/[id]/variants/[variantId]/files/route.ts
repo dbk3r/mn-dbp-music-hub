@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server"
 
 const BACKEND_URL = process.env.BACKEND_URL || "http://backend:9000"
 
-export async function GET(req: NextRequest, { params }: { params: { id: string; variantId: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string; variantId: string }> }) {
   try {
-    const { id, variantId } = params
+    const { id, variantId } = await params
     const r = await fetch(`${BACKEND_URL}/custom/admin/products/${id}/variants/${variantId}/files`, {
       headers: { "Content-Type": "application/json" },
     })
@@ -15,9 +15,9 @@ export async function GET(req: NextRequest, { params }: { params: { id: string; 
   }
 }
 
-export async function POST(req: NextRequest, { params }: { params: { id: string; variantId: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string; variantId: string }> }) {
   try {
-    const { id, variantId } = params
+    const { id, variantId } = await params
     const { searchParams } = new URL(req.url)
     const filename = searchParams.get("filename") || "file"
     const mime = searchParams.get("mime") || "application/octet-stream"

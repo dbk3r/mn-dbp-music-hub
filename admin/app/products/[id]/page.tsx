@@ -1,6 +1,7 @@
 "use client"
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
+import { adminApiUrl } from "../../_lib/api"
 
 type Product = {
   id: number
@@ -67,16 +68,23 @@ export default function ProductDetailPage() {
   })
 
   const [newVariantLicense, setNewVariantLicense] = useState(0)
+  const [editingVariantId, setEditingVariantId] = useState<number | null>(null)
+  const [variantFormData, setVariantFormData] = useState<{
+    name: string
+    price_cents: number
+    status: string
+    description: string
+  }>({ name: "", price_cents: 0, status: "active", description: "" })
 
   useEffect(() => {
     if (!Number.isFinite(id)) return
 
     Promise.all([
-      fetch(`/api/products/${id}`).then((r) => r.json()),
-      fetch("/api/categories").then((r) => r.json()),
-      fetch("/api/tags").then((r) => r.json()),
-      fetch("/api/license-models").then((r) => r.json()),
-      fetch(`/api/products/${id}/variants`).then((r) => r.json()),
+      fetch(adminApiUrl(`/products/${id}`)).then((r) => r.json()),
+      fetch(adminApiUrl("/categories")).then((r) => r.json()),
+      fetch(adminApiUrl("/tags")).then((r) => r.json()),
+      fetch(adminApiUrl("/license-models")).then((r) => r.json()),
+      fetch(adminApiUrl(`/products/${id}/variants`)).then((r) => r.json()),
     ]).then(([productData, catData, tagData, licenseData, variantData]) => {
       setProduct(productData)
       setFormData({
@@ -96,7 +104,7 @@ export default function ProductDetailPage() {
   useEffect(() => {
     variants.forEach((v) => {
       if (!variantFiles.has(v.id)) {
-        fetch(`/api/products/${id}/variants/${v.id}/files`)
+        fetch(adminApiUrl(`/products/${id}/variants/${v.id}/files`))
           .then((r) => r.json())
           .then((data) => {
             setVariantFiles((prev) => {
@@ -110,7 +118,7 @@ export default function ProductDetailPage() {
   }, [variants, id, variantFiles])
 
   async function handleSave() {
-    const r = await fetch(`/api/products/${id}`, {
+    const r = await fetch(adminApiUrl(`/products/${id}`), {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(formData),
@@ -124,7 +132,7 @@ export default function ProductDetailPage() {
 
   async function handleAddVariant() {
     if (!newVariantLicense) return
-    const r = await fetch(`/api/products/${id}/variants`, {
+    const r = await fetch(adminApiUrl(`/products/${id}/variants`), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ license_model_id: newVariantLicense }),
@@ -136,9 +144,22 @@ export default function ProductDetailPage() {
     }
   }
 
+  async function handleUpdateVariant(variantId: number) {
+    const r = await fetch(adminApiUrl(`/products/${id}/variants/${variantId}`), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(variantFormData),
+    })
+    if (r.ok) {
+      const updated = await r.json()
+      setVariants((prev) => prev.map((v) => (v.id === variantId ? { ...v, ...updated } : v)))
+      setEditingVariantId(null)
+    }
+  }
+
   async function handleDeleteVariant(variantId: number) {
     if (!confirm("Variante löschen?")) return
-    const r = await fetch(`/api/products/${id}/variants/${variantId}`, { method: "DELETE" })
+    const r = await fetch(adminApiUrl(`/products/${id}/variants/${variantId}`), { method: "DELETE" })
     if (r.ok) {
       setVariants((prev) => prev.filter((v) => v.id !== variantId))
       setVariantFiles((prev) => {
@@ -156,7 +177,7 @@ export default function ProductDetailPage() {
       const file = e.target?.files?.[0]
       if (!file) return
 
-      const r = await fetch(`/api/products/${id}/variants/${variantId}/files?filename=${encodeURIComponent(file.name)}&mime=${encodeURIComponent(file.type)}`, {
+      const r = await fetch(adminApiUrl(`/products/${id}/variants/${variantId}/files?filename=${encodeURIComponent(file.name)}&mime=${encodeURIComponent(file.type)}`), {
         method: "POST",
         body: file,
       })
@@ -175,7 +196,7 @@ export default function ProductDetailPage() {
 
   async function handleDeleteFile(variantId: number, fileId: number) {
     if (!confirm("Datei löschen?")) return
-    const r = await fetch(`/api/products/${id}/variants/${variantId}/files/${fileId}`, { method: "DELETE" })
+    const r = await fetch(adminApiUrl(`/products/${id}/variants/${variantId}/files/${fileId}`), { method: "DELETE" })
     if (r.ok) {
       setVariantFiles((prev) => {
         const next = new Map(prev)
@@ -186,17 +207,17 @@ export default function ProductDetailPage() {
     }
   }
 
-  if (!product) return <div style={{ padding: 30 }}>Lädt...</div>
+  if (!product) return <div className="page-container">Lädt...</div>
 
   return (
-    <div style={{ padding: 30 }}>
-      <button onClick={() => router.push("/products")} style={{ marginBottom: 20 }}>
+    <div className="page-container">
+      <button onClick={() => router.push("/products")} className="mb-20">
         ← Zurück
       </button>
 
       <h1>Produkt: {product.title}</h1>
 
-      <div style={{ marginBottom: 30, padding: 20, background: "#fafafa", borderRadius: 8 }}>
+      <div className="section-container">
         {editMode ? (
           <div>
             <div style={{ marginBottom: 12 }}>
@@ -284,84 +305,198 @@ export default function ProductDetailPage() {
         )}
       </div>
 
-      <h2>Varianten (Lizenzmodelle)</h2>
-      <div style={{ marginBottom: 30 }}>
+      <h2 style={{ marginTop: 40, marginBottom: 16 }}>Varianten / Lizenzmodelle</h2>
+      <p style={{ fontSize: 14, color: "#666", marginBottom: 20 }}>Jede Variante repräsentiert ein Lizenzmodell mit eigenem Preis und Download-Dateien.</p>
+      <div className="mb-30">
         {variants.length === 0 ? (
-          <p>Keine Varianten vorhanden.</p>
+          <div className="empty-state">
+            Keine Varianten vorhanden. Fügen Sie unten eine hinzu.
+          </div>
         ) : (
           variants.map((v) => {
             const files = variantFiles.get(v.id) || []
+            const isEditing = editingVariantId === v.id
             return (
               <div
                 key={v.id}
+                className="card"
                 style={{
-                  marginBottom: 16,
-                  padding: 16,
-                  border: "1px solid #ddd",
-                  borderRadius: 8,
-                  background: "#fff",
+                  marginBottom: 20,
+                  border: isEditing ? "2px solid var(--primary)" : undefined,
+                  boxShadow: isEditing ? "0 4px 12px rgba(0,112,243,0.1)" : "none",
                 }}
               >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                {isEditing ? (
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: 16 }}>{v.name}</div>
-                    <div style={{ color: "#666", fontSize: 14 }}>
-                      Lizenzmodell: {v.license_model_name} · Preis: {(v.price_cents / 100).toFixed(2)}€
+                    <h3 style={{ marginBottom: 16 }}>Variante bearbeiten</h3>
+                    <div className="mb-12">
+                      <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>Name</label>
+                      <input
+                        type="text"
+                        value={variantFormData.name}
+                        onChange={(e) => setVariantFormData({ ...variantFormData, name: e.target.value })}
+                        style={{ width: "100%" }}
+                      />
+                    </div>
+                    <div className="mb-12">
+                      <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>Preis (Cent)</label>
+                      <input
+                        type="number"
+                        value={variantFormData.price_cents}
+                        onChange={(e) => setVariantFormData({ ...variantFormData, price_cents: Number(e.target.value) })}
+                        style={{ width: "100%" }}
+                      />
+                      <small style={{ color: "#666" }}>Aktuell: {(variantFormData.price_cents / 100).toFixed(2)}€</small>
+                    </div>
+                    <div className="mb-12">
+                      <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>Status</label>
+                      <select
+                        value={variantFormData.status}
+                        onChange={(e) => setVariantFormData({ ...variantFormData, status: e.target.value })}
+                        style={{ width: "100%" }}
+                      >
+                        <option value="active">Aktiv (verfügbar)</option>
+                        <option value="inactive">Inaktiv (nicht verfügbar)</option>
+                        <option value="sold_out">Ausverkauft</option>
+                      </select>
+                    </div>
+                    <div style={{ marginBottom: 16 }}>
+                      <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>Beschreibung / Lizenzbedingungen</label>
+                      <textarea
+                        value={variantFormData.description}
+                        onChange={(e) => setVariantFormData({ ...variantFormData, description: e.target.value })}
+                        placeholder="Details zur Lizenz, Nutzungsbedingungen, etc."
+                        style={{ width: "100%", minHeight: 100 }}
+                      />
+                    </div>
+                    <div className="flex gap-8">
+                      <button onClick={() => handleUpdateVariant(v.id)}>
+                        Speichern
+                      </button>
+                      <button
+                        className="btn-secondary"
+                        onClick={() => setEditingVariantId(null)}
+                      >
+                        Abbrechen
+                      </button>
                     </div>
                   </div>
-                  <button onClick={() => handleDeleteVariant(v.id)} style={{ background: "#d00", color: "#fff" }}>
-                    Löschen
-                  </button>
-                </div>
+                ) : (
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                          <h3 style={{ margin: 0, fontSize: 18 }}>{v.name}</h3>
+                          <span className={`badge badge-${v.status}`}>
+                            {v.status === "active" ? "Aktiv" : v.status === "sold_out" ? "Ausverkauft" : "Inaktiv"}
+                          </span>
+                        </div>
+                        <div className="text-muted" style={{ fontSize: 14, marginBottom: 4 }}>
+                          Lizenzmodell: <strong>{v.license_model_name}</strong> · Preis: <strong>{(v.price_cents / 100).toFixed(2)}€</strong>
+                        </div>
+                      </div>
+                      <div className="flex gap-8">
+                        <button
+                          onClick={() => {
+                            setEditingVariantId(v.id)
+                            setVariantFormData({
+                              name: v.name,
+                              price_cents: v.price_cents,
+                              status: v.status,
+                              description: "",
+                            })
+                          }}
+                        >
+                          Bearbeiten
+                        </button>
+                        <button
+                          className="btn-danger"
+                          onClick={() => handleDeleteVariant(v.id)}
+                        >
+                          Löschen
+                        </button>
+                      </div>
+                    </div>
 
-                <div style={{ marginTop: 12 }}>
-                  <strong>Dateien:</strong>
-                  {files.length === 0 ? (
-                    <p style={{ color: "#999", fontSize: 13 }}>Keine Dateien angehängt.</p>
-                  ) : (
-                    <ul style={{ marginTop: 8 }}>
-                      {files.map((f) => (
-                        <li key={f.id} style={{ marginBottom: 8 }}>
-                          <a href={f.download_url} target="_blank" rel="noopener noreferrer">
-                            {f.original_name}
-                          </a>{" "}
-                          ({(f.size / 1024).toFixed(1)} KB)
-                          <button
-                            onClick={() => handleDeleteFile(v.id, f.id)}
-                            style={{ marginLeft: 12, fontSize: 12, padding: "2px 8px", background: "#d00", color: "#fff" }}
-                          >
-                            ×
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  <button onClick={() => handleUploadFile(v.id)} style={{ marginTop: 8 }}>
-                    + Datei hochladen
-                  </button>
-                </div>
+                    <div style={{ marginTop: 16, padding: 16, background: "var(--input-bg)", borderRadius: 6 }}>
+                      <div className="flex justify-between items-center" style={{ marginBottom: 12 }}>
+                        <strong style={{ fontSize: 15 }}>Download-Dateien ({files.length})</strong>
+                        <button
+                          className="btn-success"
+                          onClick={() => handleUploadFile(v.id)}
+                        >
+                          + Datei hochladen
+                        </button>
+                      </div>
+                      {files.length === 0 ? (
+                        <p className="text-muted" style={{ fontSize: 13, margin: 0 }}>Keine Dateien angehängt. Laden Sie Dateien hoch, die Käufer herunterladen können.</p>
+                      ) : (
+                        <div className="flex-col gap-8">
+                          {files.map((f) => (
+                            <div
+                              key={f.id}
+                              className="card"
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                padding: 10,
+                              }}
+                            >
+                              <div style={{ flex: 1 }}>
+                                <a
+                                  href={f.download_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{ fontWeight: 600 }}
+                                >
+                                  {f.original_name}
+                                </a>
+                                <div className="text-muted" style={{ fontSize: 12, marginTop: 2 }}>{(f.size / 1024).toFixed(1)} KB</div>
+                              </div>
+                              <button
+                                className="btn-danger"
+                                onClick={() => handleDeleteFile(v.id, f.id)}
+                                style={{ padding: "4px 10px", fontSize: 13 }}
+                              >
+                                Löschen
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )
           })
         )}
 
-        <div style={{ marginTop: 20, padding: 16, background: "#fafafa", borderRadius: 8 }}>
-          <h3>Neue Variante hinzufügen</h3>
-          <select
-            value={newVariantLicense}
-            onChange={(e) => setNewVariantLicense(Number(e.target.value))}
-            style={{ padding: 8, marginRight: 12 }}
-          >
-            <option value={0}>Lizenzmodell wählen</option>
-            {licenseModels.map((lm) => (
-              <option key={lm.id} value={lm.id}>
-                {lm.name} ({(lm.price_cents / 100).toFixed(2)}€)
-              </option>
-            ))}
-          </select>
-          <button onClick={handleAddVariant} disabled={!newVariantLicense}>
-            Hinzufügen
-          </button>
+        <div style={{ marginTop: 20, padding: 20, background: "var(--card-bg)", border: "2px dashed var(--primary)", borderRadius: 8 }}>
+          <h3 style={{ marginBottom: 12 }}>Neue Variante hinzufügen</h3>
+          <p className="text-muted" style={{ fontSize: 14, marginBottom: 16 }}>Wählen Sie ein Lizenzmodell. Preis und Name werden als Vorlage übernommen und können anschließend angepasst werden.</p>
+          <div className="flex gap-12 items-center">
+            <select
+              value={newVariantLicense}
+              onChange={(e) => setNewVariantLicense(Number(e.target.value))}
+              style={{ flex: 1, border: "1px solid var(--primary)" }}
+            >
+              <option value={0}>Lizenzmodell wählen ({licenseModels.length} verfügbar)</option>
+              {licenseModels.map((lm) => (
+                <option key={lm.id} value={lm.id}>
+                  {lm.name} — {(lm.price_cents / 100).toFixed(2)}€{lm.description ? ` · ${lm.description}` : ""}
+                </option>
+              ))}
+            </select>
+            <button
+              className="btn-success"
+              onClick={handleAddVariant}
+              disabled={!newVariantLicense}
+            >
+              + Hinzufügen
+            </button>
+          </div>
         </div>
       </div>
     </div>

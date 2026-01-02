@@ -1,71 +1,159 @@
-import React, { useState } from "react"
+"use client"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import HeaderMenu from "../components/HeaderMenu"
 
 export default function LoginPage() {
-  const [step, setStep] = useState("login")
+  const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [pin, setPin] = useState("")
+  const [otp, setOtp] = useState("")
+  const [mfaRequired, setMfaRequired] = useState(false)
+  const [tempToken, setTempToken] = useState("")
   const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
 
-  const publishableKey = process.env.NEXT_PUBLIC_API_KEY
+  useEffect(() => {
+    const token = localStorage.getItem("user_token")
+    if (token) {
+      router.push("/")
+    }
+  }, [router])
 
-  function handleLogin(e: React.FormEvent<HTMLFormElement>) {
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
+    setError("")
+    setLoading(true)
 
-    const headers: Record<string, string> = { "Content-Type": "application/json" }
-    if (publishableKey) headers["x-publishable-api-key"] = publishableKey
-
-    fetch("http://localhost:9000/store/auth/init", {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ email, password }),
-      credentials: 'include'
-    })
-      .then(r=>r.json())
-      .then(data => {
-        if (data.status === "require_pin") setStep("pin")
-        else setError(data.error || "Fehler")
+    try {
+      const r = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
       })
-      .catch(() => setError("Netzwerkfehler"))
+
+      const data = await r.json()
+
+      if (!r.ok) {
+        setError(data.message || "Login fehlgeschlagen")
+        return
+      }
+
+      if (data.mfa_required) {
+        setMfaRequired(true)
+        setTempToken(data.temp_token)
+        return
+      }
+
+      localStorage.setItem("user_token", data.token)
+      localStorage.setItem("user_data", JSON.stringify(data.user))
+      router.push("/")
+    } catch {
+      setError("Netzwerkfehler")
+    } finally {
+      setLoading(false)
+    }
   }
 
-  function handlePin(e: React.FormEvent<HTMLFormElement>) {
+  async function handleMfaVerify(e: React.FormEvent) {
     e.preventDefault()
+    setError("")
+    setLoading(true)
 
-    const headers: Record<string, string> = { "Content-Type": "application/json" }
-    if (publishableKey) headers["x-publishable-api-key"] = publishableKey
-
-    fetch("http://localhost:9000/store/auth/verify-pin", {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ email, pin }),
-      credentials: 'include'
-    })
-      .then(r=>r.json())
-      .then(data => {
-        if (data.status === "logged_in") window.location.href = "/"
-        else setError(data.error || "Fehler")
+    try {
+      const r = await fetch("/api/auth/mfa-verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ temp_token: tempToken, otp }),
       })
-      .catch(() => setError("Netzwerkfehler"))
+
+      const data = await r.json()
+
+      if (!r.ok) {
+        setError(data.message || "MFA-Verifikation fehlgeschlagen")
+        return
+      }
+
+      localStorage.setItem("user_token", data.token)
+      localStorage.setItem("user_data", JSON.stringify(data.user))
+      router.push("/")
+    } catch {
+      setError("Netzwerkfehler")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (mfaRequired) {
+    return (
+      <>
+        <HeaderMenu right={null} />
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "calc(100vh - 60px)" }}>
+          <div style={{ maxWidth: 400, width: "100%", padding: 30, background: "#fff", borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
+            <h1 style={{ marginBottom: 20 }}>MFA-Code eingeben</h1>
+            {error && <div style={{ marginBottom: 16, padding: 12, background: "#fee", color: "#d00", borderRadius: 8 }}>{error}</div>}
+            <form onSubmit={handleMfaVerify}>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: "block", marginBottom: 4, fontWeight: 600 }}>6-stelliger Code</label>
+                <input
+                  type="text"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  placeholder="123456"
+                  maxLength={6}
+                  style={{ width: "100%", padding: 10, fontSize: 16, border: "1px solid #ddd", borderRadius: 8 }}
+                  autoFocus
+                />
+              </div>
+              <button type="submit" disabled={loading} style={{ width: "100%", padding: 12, fontSize: 16, fontWeight: 600 }}>
+                {loading ? "Prüfe..." : "Verifizieren"}
+              </button>
+            </form>
+            <button onClick={() => setMfaRequired(false)} style={{ width: "100%", marginTop: 12, background: "#eee", color: "#333" }}>
+              Zurück
+            </button>
+          </div>
+        </div>
+      </>
+    )
   }
 
   return (
-    <div>
-      {step==="login" ? (
-        <form onSubmit={handleLogin}>
-          <input value={email} onChange={(e: React.ChangeEvent<HTMLInputElement>)=>setEmail(e.target.value)} type="email" placeholder="Email" required /><br/>
-          <input value={password} onChange={(e: React.ChangeEvent<HTMLInputElement>)=>setPassword(e.target.value)} type="password" placeholder="Passwort" required /><br/>
-          <button>Login</button>
-          {error && <p style={{color:"red"}}>{error}</p>}
-        </form>
-      ) : (
-        <form onSubmit={handlePin}>
-          <p>PIN kommt per E-Mail. Bitte eingeben:</p>
-          <input value={pin} onChange={(e: React.ChangeEvent<HTMLInputElement>)=>setPin(e.target.value)} type="text" placeholder="PIN" required /><br/>
-          <button>PIN bestätigen</button>
-          {error && <p style={{color:"red"}}>{error}</p>}
-        </form>
-      )}
-    </div>
+    <>
+      <HeaderMenu right={null} />
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "calc(100vh - 60px)" }}>
+        <div style={{ maxWidth: 400, width: "100%", padding: 30, background: "#fff", borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
+          <h1 style={{ marginBottom: 20 }}>Anmelden</h1>
+          {error && <div style={{ marginBottom: 16, padding: 12, background: "#fee", color: "#d00", borderRadius: 8 }}>{error}</div>}
+          <form onSubmit={handleLogin}>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: "block", marginBottom: 4, fontWeight: 600 }}>E-Mail</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="user@example.com"
+                style={{ width: "100%", padding: 10, fontSize: 16, border: "1px solid #ddd", borderRadius: 8 }}
+                required
+              />
+            </div>
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: "block", marginBottom: 4, fontWeight: 600 }}>Passwort</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                style={{ width: "100%", padding: 10, fontSize: 16, border: "1px solid #ddd", borderRadius: 8 }}
+                required
+              />
+            </div>
+            <button type="submit" disabled={loading} style={{ width: "100%", padding: 12, fontSize: 16, fontWeight: 600 }}>
+              {loading ? "Anmelden..." : "Anmelden"}
+            </button>
+          </form>
+        </div>
+      </div>
+    </>
   )
 }

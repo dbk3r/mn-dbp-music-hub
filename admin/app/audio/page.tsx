@@ -38,6 +38,7 @@ export default function AudioPage() {
   const [releaseYear, setReleaseYear] = useState<string>("");
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
 
   const [categories, setCategories] = useState<OptionItem[]>([]);
   const [tags, setTags] = useState<OptionItem[]>([]);
@@ -56,6 +57,7 @@ export default function AudioPage() {
 
   async function refresh() {
     setError(null);
+    setInfo(null);
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) {
       setError(`Laden fehlgeschlagen (${res.status})`);
@@ -96,6 +98,7 @@ export default function AudioPage() {
 
     setIsBusy(true);
     setError(null);
+    setInfo(null);
     try {
       const form = new FormData();
       form.set("file", file);
@@ -122,6 +125,7 @@ export default function AudioPage() {
       setDescription("");
       setReleaseYear("");
       await refresh();
+      setInfo("Upload abgeschlossen (Produkt wird automatisch angelegt).");
     } finally {
       setIsBusy(false);
     }
@@ -130,6 +134,7 @@ export default function AudioPage() {
   async function remove(id: number) {
     setIsBusy(true);
     setError(null);
+    setInfo(null);
     try {
       const res = await fetch(`${url}/${id}`, { method: "DELETE" });
       if (!res.ok) {
@@ -145,12 +150,40 @@ export default function AudioPage() {
   async function reanalyze(id: number) {
     setIsBusy(true);
     setError(null);
+    setInfo(null);
     try {
       const res = await fetch(`${url}/${id}/reanalyze`, { method: "POST" });
       if (!res.ok) {
         setError(`Re-Analyse fehlgeschlagen (${res.status})`);
         return;
       }
+      await refresh();
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function ensureProduct(id: number) {
+    setIsBusy(true);
+    setError(null);
+    setInfo(null);
+    try {
+      const res = await fetch(adminApiUrl("/products"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audio_file_id: id }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        const message = typeof data?.message === "string" ? data.message : `Produkt fehlgeschlagen (${res.status})`;
+        setError(message);
+        return;
+      }
+
+      const created = data?.created === true;
+      setInfo(created ? "Produkt angelegt." : "Produkt war bereits vorhanden.");
       await refresh();
     } finally {
       setIsBusy(false);
@@ -283,6 +316,12 @@ export default function AudioPage() {
         </div>
       ) : null}
 
+      {info ? (
+        <div className="rounded border border-foreground/15 bg-emerald-500/10 p-3 text-sm text-emerald-800">
+          {info}
+        </div>
+      ) : null}
+
       <div className="overflow-hidden rounded border border-foreground/10">
         <table className="w-full text-left text-sm">
           <thead className="bg-foreground/5">
@@ -319,6 +358,14 @@ export default function AudioPage() {
                   <td className="px-3 py-2">{a.size}</td>
                   <td className="px-3 py-2">{a.created_at}</td>
                   <td className="px-3 py-2 text-right">
+                    <button
+                      className="rounded px-3 py-1 text-sm hover:bg-foreground/5 disabled:opacity-60"
+                      onClick={() => ensureProduct(a.id)}
+                      disabled={isBusy}
+                      type="button"
+                    >
+                      Produkt anlegen
+                    </button>
                     <button
                       className="rounded px-3 py-1 text-sm hover:bg-foreground/5 disabled:opacity-60"
                       onClick={() => setSelectedId(a.id)}

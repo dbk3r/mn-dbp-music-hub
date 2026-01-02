@@ -2,9 +2,8 @@ import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import crypto from "crypto"
 import path from "path"
 import fs from "fs/promises"
-import { ensureDataSource, setAdminCors } from "../../../../_utils"
-import { VariantFile } from "../../../../../../../models/variant-file"
-import { ProductVariant } from "../../../../../../../models/product-variant"
+import { ensureDataSource, setAdminCors } from "../../../../../_utils"
+import { VariantFile, ProductVariant } from "../../../../../models"
 
 async function readRequestBody(req: MedusaRequest): Promise<Buffer> {
   const chunks: Buffer[] = []

@@ -1,6 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from "typeorm"
 
-@Entity({ name: "variant_file" })
+@Entity({ name: "audio_variant_file" })
 export class VariantFile {
   @PrimaryGeneratedColumn()
   id: number

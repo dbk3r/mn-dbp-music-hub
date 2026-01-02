@@ -19,17 +19,24 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const token = localStorage.getItem("admin_token")
-    if (!token) return
+    if (!token) {
+      setLoading(false)
+      return
+    }
 
     fetch("/api/user/me", {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then((r) => r.json())
-      .then((data) => {
+      .then(async (r) => {
+        const data = await r.json()
+        if (!r.ok) {
+          throw new Error(data?.message || "Fehler beim Laden")
+        }
         setUser(data)
         setDisplayName(data.display_name || "")
         setAvatarUrl(data.avatar_url || "")
       })
+      .catch((err) => setMessage(err?.message || "Fehler beim Laden"))
       .finally(() => setLoading(false))
   }, [])
 

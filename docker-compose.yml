@@ -20,7 +20,7 @@ services:
   backend:
     image: node:20
     working_dir: /app
-    command: sh -c "command -v ffmpeg >/dev/null 2>&1 || (apt-get update && apt-get install -y ffmpeg); yarn install && yarn build && yarn dev"
+    command: sh -c "command -v ffmpeg >/dev/null 2>&1 || (apt-get update && apt-get install -y ffmpeg); yarn install && yarn build && CHOKIDAR_USEPOLLING=false WATCHPACK_POLLING=false yarn start"
     environment:
       NODE_ENV: development
       DATABASE_URL: postgres://medusa:medusa@postgres:5432/medusa?sslmode=disable
@@ -29,12 +29,14 @@ services:
       ADMIN_CORS: http://localhost:5173,http://localhost:9000
       AUTH_CORS: http://localhost:5173,http://localhost:9000,http://localhost:8000
       PGSSLMODE: disable
+      AUDIO_UPLOAD_DIR: /app/uploads
     depends_on:
       - postgres
       - redis
     volumes:
       - ./backend:/app
       - backend_uploads:/app/uploads
+      - /app/uploads
 
     ports:
       - "9000:9000"

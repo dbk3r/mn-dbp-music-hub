@@ -4,10 +4,10 @@ const BACKEND_URL = process.env.BACKEND_URL || "http://backend:9000"
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string; variantId: string; fileId: string } }
+  { params }: { params: Promise<{ id: string; variantId: string; fileId: string }> }
 ) {
   try {
-    const { id, variantId, fileId } = params
+    const { id, variantId, fileId } = await params
     const r = await fetch(`${BACKEND_URL}/custom/admin/products/${id}/variants/${variantId}/files/${fileId}`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },

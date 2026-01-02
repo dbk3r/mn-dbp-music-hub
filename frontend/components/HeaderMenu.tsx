@@ -1,7 +1,10 @@
+"use client"
 import React, { useEffect, useState } from "react"
+import UserAvatar from "./UserAvatar"
+import UserMenu from "./UserMenu"
 
 type HeaderMenuProps = {
-  right: React.ReactNode
+  right?: React.ReactNode | null
 }
 
 type MenuItem = {
@@ -11,11 +14,14 @@ type MenuItem = {
 
 export default function HeaderMenu({ right }: HeaderMenuProps) {
   const [menu, setMenu] = useState<MenuItem[]>([])
+  const [showUserMenu, setShowUserMenu] = useState(false)
+  
   useEffect(() => {
     fetch("/api/menu")
       .then(r => r.json())
       .then((data: { items?: MenuItem[] }) => setMenu(Array.isArray(data.items) ? data.items : []))
   }, [])
+  
   return (
     <header style={{position:"sticky",top:0,zIndex:1000,background:"#fff",padding:"0.5em 1em",boxShadow:"0 2px 8px #eee",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
       <nav>
@@ -25,7 +31,12 @@ export default function HeaderMenu({ right }: HeaderMenuProps) {
           ))}
         </ul>
       </nav>
-      {right}
+      {right !== null && right !== undefined ? right : (
+        <>
+          <UserAvatar onClick={() => setShowUserMenu(!showUserMenu)} />
+          {showUserMenu && <UserMenu onClose={() => setShowUserMenu(false)} />}
+        </>
+      )}
     </header>
   )
 }

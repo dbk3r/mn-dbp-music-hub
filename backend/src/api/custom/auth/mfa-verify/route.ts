@@ -1,9 +1,9 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import jwt from "jsonwebtoken"
 import { authenticator } from "otplib"
-import { setStoreCors } from "../audio/_cors"
-import { AppDataSource } from "../../../datasource/data-source"
-import { User } from "../../../models/user"
+import { setStoreCors } from "../../audio/_cors"
+import { AppDataSource } from "../../../../datasource/data-source"
+import { User } from "../../../../models/user"
 
 async function readJsonBody(req: MedusaRequest): Promise<any> {
   const chunks: Buffer[] = []

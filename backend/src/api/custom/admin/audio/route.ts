@@ -6,6 +6,7 @@ import { AudioFile } from "../../../../models/audio-file"
 import { LicenseModel } from "../../../../models/license-model"
 import { ensureDataSource, setAdminCors } from "../_utils"
 import { analyzeAudio } from "./_audio-analysis"
+import { ensureProductForAudio } from "../products/_ensure-product"
 
 async function readRequestBody(req: MedusaRequest): Promise<Buffer> {
   const chunks: Buffer[] = []
@@ -131,6 +132,15 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
   const saved = await repo.save(created)
 
+  const productResult = await ensureProductForAudio(saved.id, {
+    title,
+    description,
+    status: "draft",
+    categoryId: saved.categoryId,
+    tagIds: saved.tagIds,
+    licenseModelIds: saved.licenseModelIds,
+  })
+
   return res.status(201).json({
     item: {
       id: saved.id,
@@ -153,5 +163,6 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       cover_url: saved.coverFilename ? `/custom/audio/${saved.id}/cover` : null,
       created_at: saved.createdAt?.toISOString?.() ?? String(saved.createdAt),
     },
+    product_created: productResult.created,
   })
 }
