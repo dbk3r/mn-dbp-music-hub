@@ -1,10 +1,20 @@
 import React, { useEffect, useState } from "react"
-export default function HeaderMenu({right}) {
-  const [menu, setMenu] = useState([])
+
+type HeaderMenuProps = {
+  right: React.ReactNode
+}
+
+type MenuItem = {
+  label: string
+  link: string
+}
+
+export default function HeaderMenu({ right }: HeaderMenuProps) {
+  const [menu, setMenu] = useState<MenuItem[]>([])
   useEffect(() => {
     fetch("/api/menu")
       .then(r => r.json())
-      .then(data => setMenu(data.items || []))
+      .then((data: { items?: MenuItem[] }) => setMenu(Array.isArray(data.items) ? data.items : []))
   }, [])
   return (
     <header style={{position:"sticky",top:0,zIndex:1000,background:"#fff",padding:"0.5em 1em",boxShadow:"0 2px 8px #eee",display:"flex",alignItems:"center",justifyContent:"space-between"}}>

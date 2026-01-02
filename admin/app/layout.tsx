@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
+import UserAvatar from "../components/UserAvatar";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -30,9 +31,24 @@ export default function RootLayout({
       >
         <div className="min-h-screen bg-background text-foreground">
           <div className="mx-auto flex min-h-screen w-full max-w-7xl">
-            <aside className="w-64 border-r border-foreground/10 p-4">
+            <aside className="w-64 flex items-center justify-between">
+                <div className="text-lg font-semibold">DBP Admin</div>
+                <UserAvatar />
+              4">
               <div className="mb-6 text-lg font-semibold">DBP Admin</div>
               <nav className="flex flex-col gap-1 text-sm">
+                <Link
+                  className="rounded px-3 py-2 hover:bg-foreground/5"
+                  href="/products"
+                >
+                  Produkte
+                </Link>
+                <Link
+                  className="rounded px-3 py-2 hover:bg-foreground/5"
+                  href="/audio"
+                >
+                  Audio-Dateien
+                </Link>
                 <Link
                   className="rounded px-3 py-2 hover:bg-foreground/5"
                   href="/license-models"
@@ -54,14 +70,14 @@ export default function RootLayout({
                 <Link
                   className="rounded px-3 py-2 hover:bg-foreground/5"
                   href="/users"
-                >
-                  User
-                </Link>
                 <Link
                   className="rounded px-3 py-2 hover:bg-foreground/5"
-                  href="/audio"
+                  href="/settings"
                 >
-                  Audio-Dateien
+                  Einstellungen
+                </Link>
+                >
+                  User
                 </Link>
               </nav>
             </aside>

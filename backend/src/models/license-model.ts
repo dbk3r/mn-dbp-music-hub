@@ -5,10 +5,10 @@ export class LicenseModel {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ type: "varchar" })
   name: string;
 
-  @Column({ nullable: true })
+  @Column({ type: "varchar", nullable: true })
   icon: string | null;
 
   @Column({ type: "text", nullable: true })

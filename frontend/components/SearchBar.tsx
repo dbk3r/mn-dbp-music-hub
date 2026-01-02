@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react"
 
-type SearchValues = {
+export type SearchValues = {
   title: string
   artist: string
   category: string
@@ -10,8 +10,19 @@ type SearchValues = {
   licenseModel: string
 }
 
-type SearchBarProps = {
+export type SearchBarProps = {
   onSearch: (values: SearchValues) => void
+}
+
+type LicenseModelItem = {
+  id: number
+  name: string
+  description: string | null
+  price_cents: number
+}
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null
 }
 
 const initialFields: SearchValues = {
@@ -29,7 +40,7 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
   const [collapsed, setCollapsed] = useState(false)
   const [categories, setCategories] = useState<string[]>([])
   const [tags, setTags] = useState<string[]>([])
-  const [licenseModels, setLicenseModels] = useState<string[]>([])
+  const [licenseModels, setLicenseModels] = useState<LicenseModelItem[]>([])
   // Kategorien, Tags und Lizenzmodelle vom Backend laden
   useEffect(() => {
     fetch("/custom/categories", { cache: "no-store" })
@@ -44,9 +55,38 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
 
     fetch("/custom/license-models", { cache: "no-store" })
       .then(r => r.json())
-      .then(data => setLicenseModels(Array.isArray(data) ? data : []))
-      .catch(()=>setLicenseModels([]))
+      .then((data) => {
+        if (!Array.isArray(data)) {
+          setLicenseModels([])
+          return
+        }
+
+        // Backward compatible: accept string[] or object[]
+        const normalized: LicenseModelItem[] = data
+          .map((x: unknown) => {
+            if (typeof x === "string") {
+              return { id: Number.NaN, name: x, description: null, price_cents: 0 }
+            }
+            if (!isRecord(x)) {
+              return { id: Number.NaN, name: "", description: null, price_cents: 0 }
+            }
+            const id = Number(x.id)
+            const name = typeof x.name === "string" ? x.name : String(x.name ?? "")
+            const description = x.description == null ? null : String(x.description)
+            const price_cents = Number(x.price_cents ?? 0)
+            return { id, name, description, price_cents }
+          })
+          .filter((x) => x.name)
+
+        setLicenseModels(normalized)
+      })
+      .catch(() => setLicenseModels([]))
   }, [])
+
+  function fmtCents(v: number) {
+    if (!Number.isFinite(v)) return "–"
+    return (v / 100).toFixed(2)
+  }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
     setValues({ ...values, [e.target.name]: e.target.value })
@@ -121,7 +161,11 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
             style={{minWidth: 150}}
           >
             <option value="">Lizenzmodell</option>
-            {licenseModels.map(lm => <option key={lm} value={lm}>{lm}</option>)}
+            {licenseModels.map((lm) => (
+              <option key={`${lm.id}-${lm.name}`} value={Number.isFinite(lm.id) ? String(lm.id) : lm.name}>
+                {lm.name} ({fmtCents(lm.price_cents)}€)
+              </option>
+            ))}
           </select>
           <button type="submit">Suchen</button>
         </form>

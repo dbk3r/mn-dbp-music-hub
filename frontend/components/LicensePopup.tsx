@@ -1,6 +1,26 @@
 import React, { useState } from "react"
-export default function LicensePopup({ lizenzen, onSelect, onClose }) {
-  const [selected, setSelected] = useState(lizenzen[0]?.id)
+
+type LicenseModel = {
+  id: string | number
+  name: string
+  description?: string | null
+  price_cents?: number | null
+}
+
+type LicensePopupProps = {
+  lizenzen: LicenseModel[]
+  onSelect: (id: string | number) => void
+  onClose: () => void
+}
+
+export default function LicensePopup({ lizenzen, onSelect, onClose }: LicensePopupProps) {
+  const [selected, setSelected] = useState<string | number | undefined>(lizenzen[0]?.id)
+
+  function formatPriceCents(v: number | null | undefined) {
+    if (typeof v !== "number" || !Number.isFinite(v)) return "–"
+    return (v / 100).toFixed(2)
+  }
+
   return (
     <div style={{
       position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.4)",
@@ -11,7 +31,7 @@ export default function LicensePopup({ lizenzen, onSelect, onClose }) {
       }}>
         <h3>Lizenzmodell wählen</h3>
         <div style={{display:"flex",gap:22,margin:"22px 0"}}>
-          {lizenzen.map(liz => (
+          {lizenzen.map((liz) => (
             <div
               key={liz.id}
               tabIndex={0}
@@ -26,12 +46,12 @@ export default function LicensePopup({ lizenzen, onSelect, onClose }) {
             >
               <div style={{fontWeight:600,fontSize:16,marginBottom:9}}>{liz.name}</div>
               <div style={{fontSize:13,color:"#555"}}>{liz.description}</div>
-              <div style={{marginTop:10,color:"#1994e2",fontWeight:500,fontSize:15}}>{liz.price} €</div>
+              <div style={{marginTop:10,color:"#1994e2",fontWeight:500,fontSize:15}}>{formatPriceCents(liz.price_cents)} €</div>
             </div>
           ))}
         </div>
         <div style={{marginTop:24,display:"flex",gap:18}}>
-          <button disabled={!selected} onClick={() => onSelect(selected)}>Bestätigen</button>
+          <button disabled={!selected} onClick={() => { if (selected !== undefined) onSelect(selected) }}>Bestätigen</button>
           <button onClick={onClose} style={{background:"#eee"}}>Abbrechen</button>
         </div>
       </div>

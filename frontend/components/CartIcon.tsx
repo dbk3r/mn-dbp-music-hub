@@ -1,4 +1,9 @@
-export default function CartIcon({count, onClick}) {
+type CartIconProps = {
+  count: number
+  onClick: () => void
+}
+
+export default function CartIcon({ count, onClick }: CartIconProps) {
   return (
     <span onClick={onClick} style={{position:"relative", cursor:"pointer",marginLeft:18,fontSize:"1.5em"}}>
       🛒

@@ -1,50 +1,230 @@
-import React, {useState} from "react"
+import React, { useEffect, useMemo, useRef, useState } from "react"
 import HeaderMenu from "../components/HeaderMenu"
 import SearchBar from "../components/SearchBar"
-import AudioResultCard from "../components/AudioResultCard"
+import type { SearchValues } from "../components/SearchBar"
+import AudioSearchResultCard from "../components/AudioSearchResultCard"
+import StickyAudioPlayer from "../components/StickyAudioPlayer"
 import CartIcon from "../components/CartIcon"
 import CartPopup from "../components/CartPopup"
 
+type AudioSearchItem = {
+  id: number
+  title: string
+  artist: string | null
+  description: string | null
+  release_year: number | null
+  mime_type: string
+  duration_ms: number | null
+  waveform_peaks: number[] | null
+  cover_url: string | null
+  stream_url: string
+  category?: string | null
+  tags?: string[]
+  license_models: Array<{
+    id: number
+    name: string
+    description: string | null
+    price_cents: number
+  }>
+}
+
+type CartItem = {
+  audioId: number
+  title: string
+  licenseModelId: number
+  licenseModelName: string
+  priceCents: number
+}
+
+type SearchResponse = {
+  items: AudioSearchItem[]
+  nextOffset: number
+  hasMore: boolean
+}
+
 export default function MainPage() {
-  const [results,setResults] = useState([])
-  const [cart,setCart] = useState([])
-  const [showCart,setShowCart] = useState(false)
-  function handleSearch(vals) {
-    fetch(`/api/search?${new URLSearchParams(vals)}`, {
-      headers: {
-        "x-publishable-api-key": process.env.NEXT_PUBLIC_API_KEY
+  const [results, setResults] = useState<AudioSearchItem[]>([])
+  const [selected, setSelected] = useState<AudioSearchItem | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
+  const [nextOffset, setNextOffset] = useState(0)
+  const [lastSearch, setLastSearch] = useState<SearchValues | null>(null)
+
+  const [cart, setCart] = useState<CartItem[]>([])
+  const [cartOpen, setCartOpen] = useState(false)
+
+  const [checkoutStatus, setCheckoutStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
+  const [checkoutTotalCents, setCheckoutTotalCents] = useState<number | undefined>(undefined)
+
+  async function checkout() {
+    if (!cart.length) return
+
+    try {
+      setCheckoutStatus("loading")
+      setCheckoutTotalCents(undefined)
+
+      const r = await fetch("/custom/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: cart.map((c) => ({ audio_id: c.audioId, license_model_id: c.licenseModelId })),
+        }),
+      })
+
+      if (!r.ok) {
+        setCheckoutStatus("error")
+        return
       }
-    })
-      .then(r=>r.json())
-      .then(data=>setResults(data.results||[]))
+
+      const data = (await r.json()) as { total_price_cents?: number }
+      const total = typeof data.total_price_cents === "number" ? data.total_price_cents : 0
+      setCheckoutTotalCents(total)
+      setCheckoutStatus("success")
+      setCart([])
+    } catch {
+      setCheckoutStatus("error")
+    }
   }
-  function handleAddToCart(itemWithLicense) {
-    setCart(c =>
-      [...c, {
-        ...itemWithLicense,
-        licenseModelName: itemWithLicense.licenseModels
-          .find(l=>l.id===itemWithLicense.licenseModel)?.name,
-        price: itemWithLicense.licenseModels
-          .find(l=>l.id===itemWithLicense.licenseModel)?.price
-      }]
+
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
+
+  const searchParams = useMemo(() => {
+    if (!lastSearch) return null
+    const p = new URLSearchParams()
+    if (lastSearch.title?.trim()) p.set("title", lastSearch.title.trim())
+    if (lastSearch.artist?.trim()) p.set("artist", lastSearch.artist.trim())
+    return p
+  }, [lastSearch])
+
+  async function fetchPage(offset: number, baseParams: URLSearchParams) {
+    const params = new URLSearchParams(baseParams)
+    params.set("limit", "20")
+    params.set("offset", String(offset))
+
+    const r = await fetch(`/custom/audio/search?${params.toString()}`, { cache: "no-store" })
+    if (!r.ok) {
+      throw new Error(`search failed: ${r.status}`)
+    }
+    return (await r.json()) as SearchResponse
+  }
+
+  async function handleSearch(vals: SearchValues) {
+    setLastSearch(vals)
+    setResults([])
+    setSelected(null)
+    setNextOffset(0)
+    setHasMore(false)
+    if (loading) return
+
+    const base = new URLSearchParams()
+    if (vals.title?.trim()) base.set("title", vals.title.trim())
+    if (vals.artist?.trim()) base.set("artist", vals.artist.trim())
+
+    setLoading(true)
+    try {
+      const data = await fetchPage(0, base)
+      setResults(data.items || [])
+      setNextOffset(data.nextOffset || (data.items?.length ?? 0))
+      setHasMore(Boolean(data.hasMore))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function loadMore() {
+    if (loading || !hasMore || !searchParams) return
+    setLoading(true)
+    try {
+      const data = await fetchPage(nextOffset, searchParams)
+      setResults((prev) => [...prev, ...(data.items || [])])
+      setNextOffset(data.nextOffset || nextOffset + (data.items?.length ?? 0))
+      setHasMore(Boolean(data.hasMore))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function addToCart(payload: { audioId: number; licenseModelId: number }) {
+    const audio = results.find((r) => r.id === payload.audioId)
+    if (!audio) return
+    const license = audio.license_models.find((l) => l.id === payload.licenseModelId)
+    if (!license) return
+
+    setCart((prev) => [
+      ...prev,
+      {
+        audioId: audio.id,
+        title: audio.title,
+        licenseModelId: license.id,
+        licenseModelName: license.name,
+        priceCents: license.price_cents,
+      },
+    ])
+    setCartOpen(true)
+    setCheckoutStatus("idle")
+    setCheckoutTotalCents(undefined)
+  }
+
+  useEffect(() => {
+    const el = sentinelRef.current
+    if (!el) return
+    if (!hasMore) return
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          loadMore()
+        }
+      },
+      { rootMargin: "300px" }
     )
-  }
+
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [hasMore, loadMore])
+
   return (
     <div>
-      <HeaderMenu right={<CartIcon count={cart.length} onClick={()=>setShowCart(true)} />} />
+      <HeaderMenu
+        right={
+          <CartIcon
+            count={cart.length}
+            onClick={() => setCartOpen((v) => !v)}
+          />
+        }
+      />
       <SearchBar onSearch={handleSearch} />
-      <div style={{maxWidth:700,margin:"2em auto 0"}}>
-        {results.map((item,i)=>
-          <AudioResultCard key={i} item={item} onAddToCart={handleAddToCart} />
+      <div style={{ maxWidth: 700, margin: "2em auto 0", paddingBottom: selected ? 220 : 24 }}>
+        {results.map((item) => (
+          <AudioSearchResultCard
+            key={item.id}
+            item={item}
+            onSelect={() => setSelected(item)}
+            onAddToCart={addToCart}
+          />
+        ))}
+
+        <div ref={sentinelRef} />
+
+        {loading && <div style={{ color: "#666", padding: "1em 0" }}>Lade…</div>}
+        {!loading && lastSearch && results.length === 0 && (
+          <div style={{ color: "#666", padding: "1em 0" }}>Keine Treffer.</div>
         )}
       </div>
-      {showCart && (
+
+      {cartOpen ? (
         <CartPopup
           cart={cart}
-          onClose={()=>setShowCart(false)}
-          onCheckout={()=>alert("Bezahlprozess hier in Popup!")}
+          onClose={() => setCartOpen(false)}
+          onCheckout={() => {
+            void checkout()
+          }}
+          checkoutStatus={checkoutStatus}
+          checkoutTotalCents={checkoutTotalCents}
         />
-      )}
+      ) : null}
+
+      <StickyAudioPlayer track={selected} />
     </div>
   )
 }

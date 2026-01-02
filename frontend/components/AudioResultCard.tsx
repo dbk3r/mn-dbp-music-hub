@@ -1,7 +1,19 @@
 import React, { useState } from "react"
 import LicensePopup from "./LicensePopup"
-export default function AudioResultCard({ item, onAddToCart }) {
+
+type AudioResultCardProps = {
+  item: any
+  onAddToCart: (itemWithLicense: any) => void
+}
+
+export default function AudioResultCard({ item, onAddToCart }: AudioResultCardProps) {
   const [popupOpen, setPopupOpen] = useState(false)
+
+  function handleSelectLicense(lizenzId: any) {
+    setPopupOpen(false)
+    onAddToCart({ ...item, licenseModel: lizenzId })
+  }
+
   return (
     <div style={{
       display: "flex", alignItems: "center",
@@ -17,7 +29,7 @@ export default function AudioResultCard({ item, onAddToCart }) {
       </div>
       <button style={{marginLeft:16, padding:"10px 18px", fontWeight:600}} onClick={() => setPopupOpen(true)}>Warenkorb +</button>
       {popupOpen && (
-        <LicensePopup lizenzen={item.licenseModels} onSelect={lizenzId => {setPopupOpen(false);onAddToCart({...item, licenseModel: lizenzId})}} onClose={() => setPopupOpen(false)} />
+        <LicensePopup lizenzen={item.licenseModels} onSelect={handleSelectLicense} onClose={() => setPopupOpen(false)} />
       )}
     </div>
   )
