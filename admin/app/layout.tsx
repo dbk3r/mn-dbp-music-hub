@@ -58,11 +58,67 @@ export default function RootLayout({
     const originalFetch = window.fetch
     window.fetch = async (...args: any[]) => {
       try {
-        const res = await originalFetch(...args)
-        if (res && (res.status === 401 || res.status === 403)) {
-          localStorage.removeItem('admin_auth_token')
-          router.push('/login')
+        const urlArg = args[0]
+        const opts = args[1] || {}
+        const method = (opts.method || 'GET').toUpperCase()
+        const headers = new Headers(opts.headers || {})
+        const hadAuthHeader = headers.has('Authorization')
+        const tokenPresent = !!localStorage.getItem('admin_auth_token')
+
+        const res: Response = await originalFetch(...args)
+
+        // Logging to help debug why we get redirected on specific requests
+        try {
+          const contentType = res.headers.get('content-type') || ''
+          const isHtml = contentType.includes('text/html')
+          const preview = isHtml ? await res.clone().text().then(t => t.slice(0, 1000)) : undefined
+          // eslint-disable-next-line no-console
+          console.groupCollapsed('[auth-fetch] ', method, String(urlArg), '->', res.status)
+          // eslint-disable-next-line no-console
+          console.log('hadAuthHeader:', hadAuthHeader, 'tokenPresent:', tokenPresent, 'content-type:', contentType)
+          if (preview) {
+            // eslint-disable-next-line no-console
+            console.log('responsePreview:', preview)
+          }
+          // eslint-disable-next-line no-console
+          console.groupEnd()
+        } catch (e) {
+          // ignore logging errors
         }
+
+        // Direct 401/403 -> force login (authorized request expected)
+        if (res && (res.status === 401 || res.status === 403)) {
+          // Only force login if the original request was an admin API call or had an auth header
+          const originUrl = String(urlArg || '')
+          const looksLikeAdminCall = originUrl.includes('/admin') || originUrl.includes('/dbp-admin') || hadAuthHeader
+          if (looksLikeAdminCall) {
+            localStorage.removeItem('admin_auth_token')
+            router.push('/login')
+            return new Response(JSON.stringify({ error: 'auth_required' }), { status: 401, headers: { 'Content-Type': 'application/json' } })
+          }
+          return res
+        }
+
+        // Detect HTML login pages and treat them as auth required only for admin calls.
+        // Only consider it a login page if the HTML contains specific markers from our login page
+        const contentType = res.headers.get('content-type') || ''
+        if (contentType.includes('text/html')) {
+          const text = await res.clone().text()
+          if (text) {
+            const lowered = text.toLowerCase()
+            const looksLikeLoginHtml = lowered.includes('admin login') || lowered.includes('music hub administration') || lowered.includes('<form') && lowered.includes('password')
+            if (looksLikeLoginHtml) {
+              const originUrl = String(urlArg || '')
+              const looksLikeAdminCall = originUrl.includes('/admin') || originUrl.includes('/dbp-admin') || hadAuthHeader
+              if (looksLikeAdminCall) {
+                localStorage.removeItem('admin_auth_token')
+                router.push('/login')
+                return new Response(JSON.stringify({ error: 'auth_required' }), { status: 401, headers: { 'Content-Type': 'application/json' } })
+              }
+            }
+          }
+        }
+
         return res
       } catch (err) {
         // network error - rethrow
