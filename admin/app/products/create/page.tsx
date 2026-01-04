@@ -39,11 +39,14 @@ export default function ProductCreatePage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    const token = localStorage.getItem("admin_auth_token")
+    const headers = token ? { Authorization: `Bearer ${token}` } : {}
+
     Promise.all([
-      fetch(adminApiUrl("/audio")).then((r) => r.json()),
-      fetch(adminApiUrl("/categories")).then((r) => r.json()),
-      fetch(adminApiUrl("/tags")).then((r) => r.json()),
-      fetch(adminApiUrl("/license-models")).then((r) => r.json()),
+      fetch(adminApiUrl("/audio"), { headers }).then((r) => r.json()),
+      fetch(adminApiUrl("/categories"), { headers }).then((r) => r.json()),
+      fetch(adminApiUrl("/tags"), { headers }).then((r) => r.json()),
+      fetch(adminApiUrl("/license-models"), { headers }).then((r) => r.json()),
     ])
       .then(([a, c, t, l]) => {
         setAudioItems(Array.isArray(a.items) ? a.items.map((x: any) => ({ id: x.id, title: x.title, artist: x.artist })) : [])
@@ -122,9 +125,12 @@ export default function ProductCreatePage() {
     setBusy(true)
     setError(null)
 
+    const token = localStorage.getItem("admin_auth_token")
+    const headers = token ? { "Content-Type": "application/json", Authorization: `Bearer ${token}` } : { "Content-Type": "application/json" }
+
     const res = await fetch(adminApiUrl("/products"), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({
         audio_file_id: audioId,
         title: title || undefined,
@@ -164,6 +170,7 @@ export default function ProductCreatePage() {
               adminApiUrl(`/products/${productId}/variants/${createdVariant.id}/files?filename=${encodeURIComponent(file.name)}&mime=${encodeURIComponent(file.type)}`),
               {
                 method: "POST",
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
                 body: file,
               }
             ).catch(() => null)

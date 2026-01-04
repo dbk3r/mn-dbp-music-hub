@@ -1,103 +1,67 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-import { ensureDataSource, setAdminCors } from "../../../../_utils"
-import { ProductVariant } from "../../../../models"
-
-async function readJsonBody(req: MedusaRequest): Promise<any> {
-  const chunks: Buffer[] = []
-  for await (const chunk of req as any) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
-  }
-  const raw = Buffer.concat(chunks).toString("utf8")
-  if (!raw.trim()) return null
-  return JSON.parse(raw)
-}
-
-export async function OPTIONS(req: MedusaRequest, res: MedusaResponse) {
-  setAdminCors(res)
-  return res.sendStatus(200)
-}
+import { AppDataSource } from "../../../../../../../datasource/data-source"
+import { ProductVariant } from "../../../../../../../models/product-variant"
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
-  setAdminCors(res)
+  console.log("[custom/admin/products/variant] auth header:", req.headers.authorization)
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PATCH, DELETE");
+  res.header("Access-Control-Allow-Headers", "Content-Type, x-publishable-api-key, Authorization");
 
-  const variantId = Number((req.params as any).variantId)
-  if (!Number.isFinite(variantId)) {
-    return res.status(400).json({ message: "invalid variant id" })
-  }
+  if (!AppDataSource.isInitialized) await AppDataSource.initialize()
 
-  const ds = await ensureDataSource()
-  const repo = ds.getRepository(ProductVariant)
+  const { id, variantId } = (req as any).params || {}
+  const productId = Number(id)
+  const vid = Number(variantId)
+  if (!productId || !vid) return res.status(400).json({ message: 'missing id' })
 
-  const variant = await repo.findOne({ where: { id: variantId } as any })
-  if (!variant) {
-    return res.status(404).json({ message: "variant not found" })
-  }
-
-  return res.json({
-    id: variant.id,
-    product_id: variant.productId,
-    license_model_id: variant.licenseModelId,
-    name: variant.name,
-    price_cents: variant.priceCents,
-    status: variant.status,
-    created_at: variant.createdAt?.toISOString?.() ?? String(variant.createdAt),
-  })
+  const repo = AppDataSource.getRepository(ProductVariant)
+  const v = await repo.findOne({ where: { id: vid, productId } } as any)
+  if (!v) return res.status(404).json({ message: 'not found' })
+  return res.json(v)
 }
 
 export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
-  setAdminCors(res)
+  console.log("[custom/admin/products/variant] auth header:", req.headers.authorization)
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PATCH, DELETE");
+  res.header("Access-Control-Allow-Headers", "Content-Type, x-publishable-api-key, Authorization");
 
-  const variantId = Number((req.params as any).variantId)
-  if (!Number.isFinite(variantId)) {
-    return res.status(400).json({ message: "invalid variant id" })
-  }
+  if (!AppDataSource.isInitialized) await AppDataSource.initialize()
 
-  const body = (req as any).body ?? (await readJsonBody(req).catch(() => null))
-  if (!body) {
-    return res.status(400).json({ message: "invalid body" })
-  }
+  const { id, variantId } = (req as any).params || {}
+  const productId = Number(id)
+  const vid = Number(variantId)
+  if (!productId || !vid) return res.status(400).json({ message: 'missing id' })
 
-  const ds = await ensureDataSource()
-  const repo = ds.getRepository(ProductVariant)
+  const repo = AppDataSource.getRepository(ProductVariant)
+  const body = (req as any).body || {}
+  const v = await repo.findOne({ where: { id: vid, productId } } as any)
+  if (!v) return res.status(404).json({ message: 'not found' })
 
-  const variant = await repo.findOne({ where: { id: variantId } as any })
-  if (!variant) {
-    return res.status(404).json({ message: "variant not found" })
-  }
+  if (body.name !== undefined) v.name = body.name
+  if (body.price_cents !== undefined) v.priceCents = body.price_cents
+  if (body.status !== undefined) v.status = body.status
+  if (body.description !== undefined) v.description = body.description
 
-  if (body.name != null) variant.name = String(body.name)
-  if (typeof body.price_cents === "number") variant.priceCents = body.price_cents
-  if (body.status != null) variant.status = String(body.status)
-
-  await repo.save(variant)
-
-  return res.json({
-    id: variant.id,
-    product_id: variant.productId,
-    license_model_id: variant.licenseModelId,
-    name: variant.name,
-    price_cents: variant.priceCents,
-    status: variant.status,
-  })
+  const saved = await repo.save(v as any)
+  return res.json(saved)
 }
 
 export async function DELETE(req: MedusaRequest, res: MedusaResponse) {
-  setAdminCors(res)
+  console.log("[custom/admin/products/variant] auth header:", req.headers.authorization)
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PATCH, DELETE");
+  res.header("Access-Control-Allow-Headers", "Content-Type, x-publishable-api-key, Authorization");
 
-  const variantId = Number((req.params as any).variantId)
-  if (!Number.isFinite(variantId)) {
-    return res.status(400).json({ message: "invalid variant id" })
-  }
+  if (!AppDataSource.isInitialized) await AppDataSource.initialize()
 
-  const ds = await ensureDataSource()
-  const repo = ds.getRepository(ProductVariant)
+  const { id, variantId } = (req as any).params || {}
+  const productId = Number(id)
+  const vid = Number(variantId)
+  if (!productId || !vid) return res.status(400).json({ message: 'missing id' })
 
-  const variant = await repo.findOne({ where: { id: variantId } as any })
-  if (!variant) {
-    return res.status(404).json({ message: "variant not found" })
-  }
-
-  await repo.remove(variant)
-
-  return res.json({ id: variantId, deleted: true })
+  const repo = AppDataSource.getRepository(ProductVariant)
+  await repo.delete({ id: vid, productId } as any)
+  return res.json({ ok: true })
 }

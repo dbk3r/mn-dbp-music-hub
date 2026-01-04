@@ -78,13 +78,15 @@ export default function ProductDetailPage() {
 
   useEffect(() => {
     if (!Number.isFinite(id)) return
+    const token = typeof window !== 'undefined' ? localStorage.getItem('admin_auth_token') : null
+    const headers = token ? { Authorization: `Bearer ${token}` } : {}
 
     Promise.all([
-      fetch(adminApiUrl(`/products/${id}`)).then((r) => r.json()),
-      fetch(adminApiUrl("/categories")).then((r) => r.json()),
-      fetch(adminApiUrl("/tags")).then((r) => r.json()),
-      fetch(adminApiUrl("/license-models")).then((r) => r.json()),
-      fetch(adminApiUrl(`/products/${id}/variants`)).then((r) => r.json()),
+      fetch(adminApiUrl(`/admin/products/${id}`), { headers }).then((r) => r.json()),
+      fetch(adminApiUrl("/categories"), { headers }).then((r) => r.json()),
+      fetch(adminApiUrl("/tags"), { headers }).then((r) => r.json()),
+      fetch(adminApiUrl("/license-models"), { headers }).then((r) => r.json()),
+      fetch(adminApiUrl(`/admin/products/${id}/variants`), { headers }).then((r) => r.json()),
     ]).then(([productData, catData, tagData, licenseData, variantData]) => {
       setProduct(productData)
       setFormData({
@@ -104,7 +106,9 @@ export default function ProductDetailPage() {
   useEffect(() => {
     variants.forEach((v) => {
       if (!variantFiles.has(v.id)) {
-        fetch(adminApiUrl(`/products/${id}/variants/${v.id}/files`))
+        const token = typeof window !== 'undefined' ? localStorage.getItem('admin_auth_token') : null
+        const headers = token ? { Authorization: `Bearer ${token}` } : {}
+        fetch(adminApiUrl(`/admin/products/${id}/variants/${v.id}/files`), { headers })
           .then((r) => r.json())
           .then((data) => {
             setVariantFiles((prev) => {
@@ -118,10 +122,21 @@ export default function ProductDetailPage() {
   }, [variants, id, variantFiles])
 
   async function handleSave() {
-    const r = await fetch(adminApiUrl(`/products/${id}`), {
+    const patchBody = {
+      title: formData.title,
+      description: formData.description,
+      status: formData.status,
+      category_id: formData.category_id === 0 ? null : formData.category_id,
+      tag_ids: Array.isArray(formData.tag_ids) ? formData.tag_ids : [],
+    }
+    const token = localStorage.getItem('admin_auth_token')
+    const r = await fetch(adminApiUrl(`/admin/products/${id}`), {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(formData),
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(patchBody),
     })
     if (r.ok) {
       const updated = await r.json()
@@ -132,9 +147,13 @@ export default function ProductDetailPage() {
 
   async function handleAddVariant() {
     if (!newVariantLicense) return
-    const r = await fetch(adminApiUrl(`/products/${id}/variants`), {
+    const token = localStorage.getItem('admin_auth_token')
+    const r = await fetch(adminApiUrl(`/admin/products/${id}/variants`), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify({ license_model_id: newVariantLicense }),
     })
     if (r.ok) {
@@ -145,9 +164,13 @@ export default function ProductDetailPage() {
   }
 
   async function handleUpdateVariant(variantId: number) {
-    const r = await fetch(adminApiUrl(`/products/${id}/variants/${variantId}`), {
+    const token = localStorage.getItem('admin_auth_token')
+    const r = await fetch(adminApiUrl(`/admin/products/${id}/variants/${variantId}`), {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify(variantFormData),
     })
     if (r.ok) {
@@ -159,7 +182,11 @@ export default function ProductDetailPage() {
 
   async function handleDeleteVariant(variantId: number) {
     if (!confirm("Variante löschen?")) return
-    const r = await fetch(adminApiUrl(`/products/${id}/variants/${variantId}`), { method: "DELETE" })
+    const token = localStorage.getItem('admin_auth_token')
+    const r = await fetch(adminApiUrl(`/admin/products/${id}/variants/${variantId}`), {
+      method: "DELETE",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
     if (r.ok) {
       setVariants((prev) => prev.filter((v) => v.id !== variantId))
       setVariantFiles((prev) => {
@@ -177,8 +204,15 @@ export default function ProductDetailPage() {
       const file = e.target?.files?.[0]
       if (!file) return
 
-      const r = await fetch(adminApiUrl(`/products/${id}/variants/${variantId}/files?filename=${encodeURIComponent(file.name)}&mime=${encodeURIComponent(file.type)}`), {
+      const token = localStorage.getItem('admin_auth_token')
+      // Use direct localhost URL like audio upload to bypass Next.js body size limits
+      const backendUrl = typeof window !== 'undefined' ? 'http://localhost' : 'http://backend:9000';
+      const r = await fetch(`${backendUrl}/custom/admin/products/${id}/variants/${variantId}/files?filename=${encodeURIComponent(file.name)}&mime=${encodeURIComponent(file.type)}`, {
         method: "POST",
+        headers: {
+          "Content-Type": file.type,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: file,
       })
       if (r.ok) {
@@ -196,7 +230,11 @@ export default function ProductDetailPage() {
 
   async function handleDeleteFile(variantId: number, fileId: number) {
     if (!confirm("Datei löschen?")) return
-    const r = await fetch(adminApiUrl(`/products/${id}/variants/${variantId}/files/${fileId}`), { method: "DELETE" })
+    const token = localStorage.getItem('admin_auth_token')
+    const r = await fetch(adminApiUrl(`/admin/products/${id}/variants/${variantId}/files/${fileId}`), {
+      method: "DELETE",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
     if (r.ok) {
       setVariantFiles((prev) => {
         const next = new Map(prev)

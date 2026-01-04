@@ -1,175 +1,180 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
+import { AppDataSource } from "../../../../datasource/data-source"
+import { Product } from "../../../../models/product"
+import { AudioFile } from "../../../../models/audio-file"
+import { Category } from "../../../../models/category"
+import { Tag } from "../../../../models/tag"
 import { In } from "typeorm"
-import { ensureDataSource, setAdminCors } from "../_utils"
-import { Product, ProductVariant, AudioFile, Category, Tag, LicenseModel } from "../models"
-import { ensureProductForAudio } from "./_ensure-product"
-
-export async function OPTIONS(req: MedusaRequest, res: MedusaResponse) {
-  setAdminCors(res)
-  return res.sendStatus(200)
-}
+import { ProductVariant } from "../../../../models/product-variant"
+import { LicenseModel } from "../../../../models/license-model"
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
-  setAdminCors(res)
+  console.log("[custom/admin/products] auth header:", req.headers.authorization)
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, x-publishable-api-key, Authorization");
 
-  const ds = await ensureDataSource()
-  const productRepo = ds.getRepository(Product)
-  const variantRepo = ds.getRepository(ProductVariant)
-  const audioRepo = ds.getRepository(AudioFile)
-  const categoryRepo = ds.getRepository(Category)
-  const tagRepo = ds.getRepository(Tag)
-  const licenseRepo = ds.getRepository(LicenseModel)
-
-  const products = await productRepo.find({ order: { id: "DESC" } as any, take: 200 })
-
-  const audioIds = products.map((p) => p.audioFileId).filter((id) => Number.isFinite(id))
-  const categoryIds = Array.from(new Set(products.map((p) => p.categoryId).filter((id) => typeof id === "number")))
-  const tagIds = Array.from(
-    new Set(
-      products
-        .flatMap((p) => (Array.isArray(p.tagIds) ? p.tagIds : []))
-        .map((id) => Number(id))
-        .filter((n) => Number.isFinite(n))
-    )
-  )
-
-  const [audios, categories, tags, allVariants] = await Promise.all([
-    audioIds.length ? audioRepo.findBy({ id: In(audioIds as any) } as any) : Promise.resolve([]),
-    categoryIds.length ? categoryRepo.findBy({ id: In(categoryIds as any) } as any) : Promise.resolve([]),
-    tagIds.length ? tagRepo.findBy({ id: In(tagIds as any) } as any) : Promise.resolve([]),
-    variantRepo.find({ order: { id: "ASC" } as any }),
-  ])
-
-  const audioById = new Map(audios.map((a) => [a.id, a]))
-  const categoryById = new Map(categories.map((c) => [c.id, c]))
-  const tagById = new Map(tags.map((t) => [t.id, t]))
-
-  const variantsByProduct = new Map<number, typeof allVariants>()
-  for (const v of allVariants) {
-    if (!variantsByProduct.has(v.productId)) {
-      variantsByProduct.set(v.productId, [])
-    }
-    variantsByProduct.get(v.productId)!.push(v)
+  if (!AppDataSource.isInitialized) {
+    await AppDataSource.initialize()
   }
 
-  const licenseIds = Array.from(new Set(allVariants.map((v) => v.licenseModelId).filter((id) => Number.isFinite(id))))
-  const licenses = licenseIds.length ? await licenseRepo.findBy({ id: In(licenseIds as any) } as any) : []
-  const licenseById = new Map(licenses.map((l) => [l.id, l]))
+  const productRepo = AppDataSource.getRepository(Product)
+  const audioRepo = AppDataSource.getRepository(AudioFile)
+  const categoryRepo = AppDataSource.getRepository(Category)
+  const tagRepo = AppDataSource.getRepository(Tag)
+  const variantRepo = AppDataSource.getRepository(ProductVariant)
+  const licenseRepo = AppDataSource.getRepository(LicenseModel)
 
-  const items = products.map((p) => {
-    const audio = audioById.get(p.audioFileId)
-    const category = p.categoryId ? categoryById.get(p.categoryId) : null
-    const tags = Array.isArray(p.tagIds)
-      ? p.tagIds.map((id) => tagById.get(Number(id))).filter(Boolean)
-      : []
+  const products = await productRepo.find()
 
-    const variants = (variantsByProduct.get(p.id) || []).map((v) => {
-      const license = licenseById.get(v.licenseModelId)
+  const result = await Promise.all(products.map(async (product) => {
+    const audio = product.audioFileId ? await audioRepo.findOne({ where: { id: product.audioFileId } } as any) : null
+    const category = product.categoryId ? await categoryRepo.findOne({ where: { id: product.categoryId } } as any) : null
+    const tagIds = Array.isArray(product.tagIds) ? product.tagIds.map((t: any) => Number(t)).filter(Boolean) : []
+    const tags = tagIds.length ? await tagRepo.findBy({ id: In(tagIds) } as any) : []
+    const variants = await variantRepo.find({ where: { productId: product.id }, select: [
+      "id",
+      "productId",
+      "licenseModelId",
+      "name",
+      "priceCents",
+      "status",
+      "createdAt",
+    ] } as any)
+
+    const variantsWithLicense = await Promise.all(variants.map(async (variant) => {
+      const license = variant.licenseModelId ? await licenseRepo.findOne({ where: { id: variant.licenseModelId } } as any) : null
       return {
-        id: v.id,
-        license_model_id: v.licenseModelId,
-        license_model_name: license?.name ?? "Unknown",
-        name: v.name,
-        price_cents: v.priceCents,
-        status: v.status,
+        id: variant.id,
+        license_model_id: variant.licenseModelId,
+        license_model_name: license?.name || '',
+        name: variant.name,
+        price_cents: variant.priceCents,
+        status: variant.status,
       }
-    })
+    }))
 
     return {
-      id: p.id,
-      audio_file_id: p.audioFileId,
-      title: p.title,
-      description: p.description,
-      status: p.status,
+      id: product.id,
+      audio_file_id: product.audioFileId,
+      title: product.title,
+      description: product.description,
+      status: product.status,
       category: category ? { id: category.id, name: category.name } : null,
-      tags: tags.map((t: any) => ({ id: t.id, name: t.name })),
-      audio: audio
-        ? {
-            artist: audio.artist,
-            duration_ms: audio.durationMs,
-            stream_url: `/custom/audio/${audio.id}/stream`,
-            cover_url: audio.coverFilename ? `/custom/audio/${audio.id}/cover` : null,
-          }
-        : null,
-      variants,
-      created_at: p.createdAt?.toISOString?.() ?? String(p.createdAt),
-      updated_at: p.updatedAt?.toISOString?.() ?? String(p.updatedAt),
+      tags: tags.map(tag => ({ id: tag.id, name: tag.name })),
+      audio: audio ? {
+        artist: audio.artist,
+        duration_ms: audio.durationMs,
+        stream_url: `/uploads/audio/${audio.filename}`,
+        cover_url: audio.coverFilename ? `/uploads/covers/${audio.coverFilename}` : null,
+      } : null,
+      variants: variantsWithLicense,
+      created_at: product.createdAt,
     }
-  })
+  }))
 
-  return res.json({ items })
+  res.json({ items: result })
 }
 
-async function readJsonBody(req: MedusaRequest): Promise<any> {
-  const chunks: Buffer[] = []
-  for await (const chunk of req as any) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
+  console.log("[custom/admin/products] auth header:", req.headers.authorization)
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PATCH, DELETE");
+  res.header("Access-Control-Allow-Headers", "Content-Type, x-publishable-api-key, Authorization");
+
+  if (!AppDataSource.isInitialized) {
+    await AppDataSource.initialize()
   }
-  const raw = Buffer.concat(chunks).toString("utf8")
-  if (!raw.trim()) return null
-  return JSON.parse(raw)
+
+  const id = Number((req as any).params?.id)
+  if (!id) return res.status(400).json({ message: "missing id" })
+
+  const productRepo = AppDataSource.getRepository(Product)
+  const categoryRepo = AppDataSource.getRepository(Category)
+  const tagRepo = AppDataSource.getRepository(Tag)
+
+  const body = (req as any).body || {}
+
+  const product = await productRepo.findOne({ where: { id } } as any)
+  if (!product) return res.status(404).json({ message: "not found" })
+
+  if (body.title !== undefined) product.title = body.title
+  if (body.description !== undefined) product.description = body.description
+  if (body.status !== undefined) product.status = body.status
+  if (body.category_id !== undefined) {
+    product.categoryId = body.category_id === null ? null : Number(body.category_id)
+  }
+  if (body.tag_ids !== undefined) {
+    product.tagIds = Array.isArray(body.tag_ids) ? body.tag_ids.map((t: any) => Number(t)).filter(Boolean) : []
+  }
+
+  await productRepo.save(product as any)
+
+  return res.json(product)
 }
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
-  setAdminCors(res)
+  console.log("[custom/admin/products] auth header:", req.headers.authorization)
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PATCH, DELETE");
+  res.header("Access-Control-Allow-Headers", "Content-Type, x-publishable-api-key, Authorization");
 
-  // body can be pre-parsed by Medusa's json middleware; fall back to manual read otherwise
-  const body = (req as any).body ?? (await readJsonBody(req).catch(() => null))
-  const audioId = Number(body?.audio_file_id ?? body?.audioFileId)
-
-  if (!Number.isFinite(audioId)) {
-    return res.status(400).json({ message: "audio_file_id required" })
+  if (!AppDataSource.isInitialized) {
+    await AppDataSource.initialize()
   }
 
-  const categoryId =
-    typeof body?.category_id === "number" ? body?.category_id : typeof body?.categoryId === "number" ? body?.categoryId : null
+  const productRepo = AppDataSource.getRepository(Product)
+  const variantRepo = AppDataSource.getRepository(ProductVariant)
 
-  const tagIds = Array.isArray(body?.tag_ids)
-    ? body?.tag_ids
-    : Array.isArray(body?.tagIds)
-      ? body?.tagIds
-      : null
+  const body = (req as any).body || {}
 
-  const licenseIds = Array.isArray(body?.license_model_ids)
-    ? body?.license_model_ids
-    : Array.isArray(body?.licenseModelIds)
-      ? body?.licenseModelIds
-      : null
+  const product = productRepo.create({
+    title: body.title,
+    description: body.description,
+    status: body.status || 'draft',
+    audioFileId: body.audio_file_id || null,
+    categoryId: body.category_id || null,
+    tagIds: Array.isArray(body.tag_ids) ? body.tag_ids.map((t: any) => Number(t)).filter(Boolean) : [],
+  } as any)
 
-  // New: accept explicit variant data
-  const variants = Array.isArray(body?.variants) ? body?.variants : null
+  const saved = await productRepo.save(product as any)
 
-  const result = await ensureProductForAudio(audioId, {
-    title: body?.title,
-    description: body?.description,
-    status: body?.status ?? "draft",
-    categoryId,
-    tagIds,
-    licenseModelIds: licenseIds,
-    variants,
-  })
-
-  if (!result.product) {
-    return res.status(404).json({ message: "audio file not found" })
+  // create variants if provided
+  if (Array.isArray(body.variants)) {
+    const createdVariants: any[] = []
+    for (const v of body.variants) {
+      const variant = variantRepo.create({
+        productId: saved.id,
+        licenseModelId: v.license_model_id,
+        name: v.name,
+        priceCents: v.price_cents || 0,
+        status: v.status || 'active',
+        description: v.description || null,
+      } as any)
+      const sv = await variantRepo.save(variant as any)
+      createdVariants.push(sv)
+    }
+    // attach variants to response
+    ;(saved as any).variants = createdVariants
   }
 
-  const statusCode = result.created ? 201 : 200
+  return res.status(201).json(saved)
+}
 
-  const ds = await ensureDataSource()
-  const variantRepo = ds.getRepository(ProductVariant)
-  const createdVariants = await variantRepo.findBy({ productId: result.product.id } as any)
+export async function DELETE(req: MedusaRequest, res: MedusaResponse) {
+  console.log("[custom/admin/products] auth header:", req.headers.authorization)
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PATCH, DELETE");
+  res.header("Access-Control-Allow-Headers", "Content-Type, x-publishable-api-key, Authorization");
 
-  return res.status(statusCode).json({
-    id: result.product.id,
-    audio_file_id: result.product.audioFileId,
-    title: result.product.title,
-    description: result.product.description,
-    status: result.product.status,
-    category_id: result.product.categoryId,
-    tag_ids: result.product.tagIds,
-    created_at: result.product.createdAt?.toISOString?.() ?? String(result.product.createdAt),
-    variants_created: result.variantsCreated,
-    variants: createdVariants.map((v) => ({ id: v.id, name: v.name, price_cents: v.priceCents, status: v.status })),
-    created: result.created,
-  })
+  if (!AppDataSource.isInitialized) {
+    await AppDataSource.initialize()
+  }
+
+  const id = Number((req as any).params?.id)
+  if (!id) return res.status(400).json({ message: "missing id" })
+
+  const productRepo = AppDataSource.getRepository(Product)
+  await productRepo.delete({ id } as any)
+  return res.json({ ok: true })
 }

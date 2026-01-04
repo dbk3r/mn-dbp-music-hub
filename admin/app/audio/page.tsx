@@ -58,7 +58,9 @@ export default function AudioPage() {
   async function refresh() {
     setError(null);
     setInfo(null);
-    const res = await fetch(url, { cache: "no-store" });
+    const token = localStorage.getItem("admin_auth_token")
+    const headers = token ? { Authorization: `Bearer ${token}` } : {}
+    const res = await fetch(url, { cache: "no-store", headers });
     if (!res.ok) {
       setError(`Laden fehlgeschlagen (${res.status})`);
       return;
@@ -68,10 +70,13 @@ export default function AudioPage() {
   }
 
   async function refreshOptions() {
+    const token = localStorage.getItem("admin_auth_token")
+    const headers = token ? { Authorization: `Bearer ${token}` } : {}
+
     const [cRes, tRes, lRes] = await Promise.all([
-      fetch(categoriesUrl, { cache: "no-store" }),
-      fetch(tagsUrl, { cache: "no-store" }),
-      fetch(licensesUrl, { cache: "no-store" }),
+      fetch(categoriesUrl, { cache: "no-store", headers }),
+      fetch(tagsUrl, { cache: "no-store", headers }),
+      fetch(licensesUrl, { cache: "no-store", headers }),
     ]);
 
     const cData: { items?: OptionItem[] } = await cRes.json().catch(() => ({}));
@@ -100,22 +105,47 @@ export default function AudioPage() {
     setError(null);
     setInfo(null);
     try {
-      const form = new FormData();
-      form.set("file", file);
-      if (cover) form.set("cover", cover);
-      form.set("title", title);
-      form.set("artist", artist);
-      form.set("description", description);
-      form.set("release_year", releaseYear);
+      // Build query params
+      const params = new URLSearchParams();
+      params.set("filename", file.name);
+      params.set("mime", file.type);
+      if (title) params.set("title", title);
+      if (artist) params.set("artist", artist);
+      if (description) params.set("description", description);
+      if (releaseYear) params.set("release_year", releaseYear);
 
-      const res = await fetch(url, {
+      // Use HAProxy URL for browser access (localhost) - backend:9000 only works in Docker network
+      // Upload audio file first using admin API and include auth token
+      const uploadUrl = `${adminApiUrl("/audio")}?${params.toString()}`
+      const token = localStorage.getItem("admin_auth_token")
+      const authHeaders = token ? { Authorization: `Bearer ${token}`, "Content-Type": file.type } : { "Content-Type": file.type }
+
+      const audioRes = await fetch(uploadUrl, {
         method: "POST",
-        body: form,
+        headers: authHeaders,
+        body: file,
       });
 
-      if (!res.ok) {
-        setError(`Upload fehlgeschlagen (${res.status})`);
+      if (!audioRes.ok) {
+        const text = await audioRes.text().catch(() => "");
+        setError(`Upload fehlgeschlagen (${audioRes.status}) ${text}`.trim());
         return;
+      }
+
+      const audioData = await audioRes.json();
+      const audioId = audioData?.item?.id;
+
+      // Upload cover if provided
+      if (cover && audioId) {
+        const coverParams = new URLSearchParams();
+        coverParams.set("filename", cover.name);
+        coverParams.set("mime", cover.type);
+
+        await fetch(`${adminApiUrl(`/audio/${audioId}/cover`)}?${coverParams.toString()}`, {
+          method: "POST",
+          headers: token ? { Authorization: `Bearer ${token}`, "Content-Type": cover.type } : { "Content-Type": cover.type },
+          body: cover,
+        });
       }
 
       setFile(null);
@@ -168,7 +198,7 @@ export default function AudioPage() {
     setError(null);
     setInfo(null);
     try {
-      const res = await fetch(adminApiUrl("/products"), {
+      const res = await fetch(adminApiUrl("/admin/products"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ audio_file_id: id }),

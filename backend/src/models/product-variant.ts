@@ -20,6 +20,9 @@ export class ProductVariant {
   @Column({ type: "varchar", default: "active" })
   status: string
 
+  @Column({ type: "text", nullable: true })
+  description: string | null
+
   @CreateDateColumn({ name: "created_at" })
   createdAt: Date
 }

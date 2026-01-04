@@ -2,6 +2,7 @@ import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { AppDataSource } from "../../../datasource/data-source"
 import { AudioFile } from "../../../models/audio-file"
 import { LicenseModel } from "../../../models/license-model"
+import { Order, OrderStatus } from "../../../models/order"
 import { setStoreCors } from "../audio/_cors"
 
 async function readJsonBody(req: MedusaRequest): Promise<any> {
@@ -21,6 +22,17 @@ export async function OPTIONS(req: MedusaRequest, res: MedusaResponse) {
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   setStoreCors(req, res)
+
+  // Check authentication
+  const authHeader = req.headers.authorization
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ message: "authentication required" })
+  }
+
+  const token = authHeader.substring(7)
+  // TODO: Validate JWT token and extract customer ID
+  // For now, use a dummy customer ID
+  const customerId = "cus_authenticated" // Should be from JWT
 
   const body = await readJsonBody(req).catch(() => null)
   const items = Array.isArray(body?.items) ? body.items : []
@@ -47,6 +59,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
   const audioRepo = AppDataSource.getRepository(AudioFile)
   const licenseRepo = AppDataSource.getRepository(LicenseModel)
+  const orderRepo = AppDataSource.getRepository(Order)
 
   const audioIds = Array.from(new Set(normalized.map((i) => i.audioId)))
   const licenseIds = Array.from(new Set(normalized.map((i) => i.licenseModelId)))
@@ -101,9 +114,22 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     totalPriceCents += Math.trunc(priceCents)
   }
 
+  // Create order with authenticated customer
+  const order = orderRepo.create({
+    customerId,
+    status: OrderStatus.PENDING,
+    totalPriceCents,
+    currencyCode: "EUR",
+    items: detailed,
+  })
+
+  await orderRepo.save(order)
+
   return res.json({
+    order_id: order.id,
     items: detailed,
     total_price_cents: totalPriceCents,
     currency_code: "eur",
+    status: "pending",
   })
 }

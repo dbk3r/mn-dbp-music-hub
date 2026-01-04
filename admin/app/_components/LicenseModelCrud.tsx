@@ -41,7 +41,9 @@ export default function LicenseModelCrud() {
 
   const refresh = useCallback(async () => {
     setError(null);
-    const res = await fetch(url, { cache: "no-store" });
+    const token = typeof window !== "undefined" ? localStorage.getItem("admin_auth_token") : null;
+    const headers = token ? { Authorization: `Bearer ${token}` } : {}
+    const res = await fetch(url, { cache: "no-store", headers });
     if (!res.ok) {
       setError(`Laden fehlgeschlagen (${res.status})`);
       return;
@@ -87,9 +89,12 @@ export default function LicenseModelCrud() {
       const target = form.id ? `${url}/${form.id}` : url;
       const method = form.id ? "PUT" : "POST";
 
+      const token = typeof window !== "undefined" ? localStorage.getItem("admin_auth_token") : null;
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) headers.Authorization = `Bearer ${token}`;
       const res = await fetch(target, {
         method,
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(payload),
       });
 
@@ -110,7 +115,9 @@ export default function LicenseModelCrud() {
     setIsBusy(true);
     setError(null);
     try {
-      const res = await fetch(`${url}/${id}`, { method: "DELETE" });
+      const token = typeof window !== "undefined" ? localStorage.getItem("admin_auth_token") : null;
+      const headers = token ? { Authorization: `Bearer ${token}` } : {}
+      const res = await fetch(`${url}/${id}`, { method: "DELETE", headers });
       if (!res.ok) {
         setError(`Löschen fehlgeschlagen (${res.status})`);
         return;

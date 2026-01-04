@@ -1,55 +1,90 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
+import { AppDataSource } from "../../../../datasource/data-source"
 import { LicenseModel } from "../../../../models/license-model"
-import { ensureDataSource, setAdminCors } from "../_utils"
-
-export async function OPTIONS(req: MedusaRequest, res: MedusaResponse) {
-  setAdminCors(res)
-  return res.sendStatus(200)
-}
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
-  setAdminCors(res)
+  console.log("[custom/admin/license-models] auth header:", req.headers.authorization)
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, x-publishable-api-key, Authorization");
 
-  const ds = await ensureDataSource()
-  const repo = ds.getRepository(LicenseModel)
+  if (!AppDataSource.isInitialized) {
+    await AppDataSource.initialize()
+  }
 
-  const items = await repo.find({ order: { id: "DESC" } as any })
-  return res.json({ items })
+  const repo = AppDataSource.getRepository(LicenseModel)
+  const licenseModels = await repo.find()
+
+  const result = licenseModels.map(lm => ({
+    id: lm.id,
+    name: lm.name,
+    price_cents: lm.priceCents,
+  }))
+
+  res.json({ items: result })
 }
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
-  setAdminCors(res)
+  console.log("[custom/admin/license-models] auth header:", req.headers.authorization)
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE");
+  res.header("Access-Control-Allow-Headers", "Content-Type, x-publishable-api-key, Authorization");
 
-  const body = (req.body as any) || {}
-  const name = String(body?.name ?? "").trim()
-  if (!name) {
-    return res.status(400).json({ message: "name is required" })
+  if (!AppDataSource.isInitialized) {
+    await AppDataSource.initialize()
   }
 
-  const icon = body?.icon != null ? String(body.icon).trim() || null : null
-  const description =
-    body?.description != null ? String(body.description).trim() || null : null
-  const legalDescription =
-    body?.legalDescription != null
-      ? String(body.legalDescription).trim() || null
-      : null
-
-  const priceCentsRaw = body?.priceCents
-  const priceCents = Number.isFinite(Number(priceCentsRaw))
-    ? Math.max(0, Math.trunc(Number(priceCentsRaw)))
-    : 0
-
-  const ds = await ensureDataSource()
-  const repo = ds.getRepository(LicenseModel)
-
-  const created = repo.create({
-    name,
-    icon,
-    description,
-    legalDescription,
-    priceCents,
+  const repo = AppDataSource.getRepository(LicenseModel)
+  const body = (req as any).body || {}
+  const lm = repo.create({
+    name: body.name,
+    priceCents: Number(body.priceCents) || 0,
+    description: body.description || null,
   } as any)
-  const saved = await repo.save(created)
+  const saved = await repo.save(lm as any)
+  return res.status(201).json(saved)
+}
 
-  return res.status(201).json({ item: saved })
+export async function PUT(req: MedusaRequest, res: MedusaResponse) {
+  console.log("[custom/admin/license-models] auth header:", req.headers.authorization)
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE");
+  res.header("Access-Control-Allow-Headers", "Content-Type, x-publishable-api-key, Authorization");
+
+  if (!AppDataSource.isInitialized) {
+    await AppDataSource.initialize()
+  }
+
+  const id = Number((req as any).params?.id)
+  if (!id) return res.status(400).json({ message: "missing id" })
+
+  const repo = AppDataSource.getRepository(LicenseModel)
+  const body = (req as any).body || {}
+  const lm = await repo.findOne({ where: { id } } as any)
+  if (!lm) return res.status(404).json({ message: "not found" })
+
+  if (body.name !== undefined) lm.name = body.name
+  if (body.priceCents !== undefined) lm.priceCents = Number(body.priceCents) || 0
+  if (body.description !== undefined) lm.description = body.description
+
+  const saved = await repo.save(lm as any)
+  return res.json(saved)
+}
+
+export async function DELETE(req: MedusaRequest, res: MedusaResponse) {
+  console.log("[custom/admin/license-models] auth header:", req.headers.authorization)
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE");
+  res.header("Access-Control-Allow-Headers", "Content-Type, x-publishable-api-key, Authorization");
+
+  if (!AppDataSource.isInitialized) {
+    await AppDataSource.initialize()
+  }
+
+  const id = Number((req as any).params?.id)
+  if (!id) return res.status(400).json({ message: "missing id" })
+
+  const repo = AppDataSource.getRepository(LicenseModel)
+  await repo.delete({ id } as any)
+  return res.json({ ok: true })
 }

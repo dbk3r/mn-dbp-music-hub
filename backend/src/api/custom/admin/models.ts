@@ -1,8 +1,0 @@
-export { Product } from "../../../models/product"
-export { ProductVariant } from "../../../models/product-variant"
-export { VariantFile } from "../../../models/variant-file"
-export { LicenseModel } from "../../../models/license-model"
-export { AudioFile } from "../../../models/audio-file"
-export { Category } from "../../../models/category"
-export { Tag } from "../../../models/tag"
-export { User } from "../../../models/user"

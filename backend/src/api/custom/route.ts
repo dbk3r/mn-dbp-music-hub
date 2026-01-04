@@ -9,21 +9,21 @@ const router = Router();
 router.options("/categories", (req, res) => {
   res.header("Access-Control-Allow-Origin", "http://localhost:3000");
   res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, x-publishable-api-key");
+  res.header("Access-Control-Allow-Headers", "Content-Type, x-publishable-api-key, Authorization");
   res.status(200).end();
 });
 
 router.options("/tags", (req, res) => {
   res.header("Access-Control-Allow-Origin", "http://localhost:3000");
   res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, x-publishable-api-key");
+  res.header("Access-Control-Allow-Headers", "Content-Type, x-publishable-api-key, Authorization");
   res.status(200).end();
 });
 
 router.options("/license-models", (req, res) => {
   res.header("Access-Control-Allow-Origin", "http://localhost:3000");
   res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, x-publishable-api-key");
+  res.header("Access-Control-Allow-Headers", "Content-Type, x-publishable-api-key, Authorization");
   res.status(200).end();
 });
 

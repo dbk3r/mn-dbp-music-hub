@@ -55,9 +55,17 @@ export default function MainPage() {
 
   const [checkoutStatus, setCheckoutStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
   const [checkoutTotalCents, setCheckoutTotalCents] = useState<number | undefined>(undefined)
+  const [orderId, setOrderId] = useState<number | undefined>(undefined)
 
   async function checkout() {
     if (!cart.length) return
+
+    // Check if user is logged in
+    const token = localStorage.getItem("user_token")
+    if (!token) {
+      alert("Bitte melden Sie sich an, um zu bestellen.")
+      return
+    }
 
     try {
       setCheckoutStatus("loading")
@@ -65,7 +73,10 @@ export default function MainPage() {
 
       const r = await fetch("/custom/checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
         body: JSON.stringify({
           items: cart.map((c) => ({ audio_id: c.audioId, license_model_id: c.licenseModelId })),
         }),
@@ -76,11 +87,12 @@ export default function MainPage() {
         return
       }
 
-      const data = (await r.json()) as { total_price_cents?: number }
+      const data = (await r.json()) as { total_price_cents?: number, order_id?: number }
       const total = typeof data.total_price_cents === "number" ? data.total_price_cents : 0
       setCheckoutTotalCents(total)
+      setOrderId(data.order_id)
       setCheckoutStatus("success")
-      setCart([])
+      // Don't clear cart yet - wait for payment completion
     } catch {
       setCheckoutStatus("error")
     }
@@ -215,12 +227,25 @@ export default function MainPage() {
       {cartOpen ? (
         <CartPopup
           cart={cart}
-          onClose={() => setCartOpen(false)}
+          onClose={() => {
+            setCartOpen(false)
+            setCheckoutStatus("idle")
+            setCheckoutTotalCents(undefined)
+            setOrderId(undefined)
+          }}
           onCheckout={() => {
             void checkout()
           }}
+          onPaymentSuccess={() => {
+            setCart([]) // Clear cart after successful payment
+            setCartOpen(false)
+            setCheckoutStatus("idle")
+            setCheckoutTotalCents(undefined)
+            setOrderId(undefined)
+          }}
           checkoutStatus={checkoutStatus}
           checkoutTotalCents={checkoutTotalCents}
+          orderId={orderId}
         />
       ) : null}
 

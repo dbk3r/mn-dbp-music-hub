@@ -34,11 +34,28 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   }
 
   const repo = AppDataSource.getRepository(Tag)
-  const rows = await repo.find({ select: { name: true } as any })
+  const rows = await repo.find({ order: { id: "DESC" } as any })
 
-  const names = Array.from(
-    new Set(rows.map((r: any) => String(r.name)).filter(Boolean))
-  )
+  return res.json({
+    items: rows.map(r => ({ id: r.id, name: r.name }))
+  })
+}
 
-  return res.json(names)
+export async function POST(req: MedusaRequest, res: MedusaResponse) {
+  setCors(req, res)
+
+  if (!AppDataSource.isInitialized) {
+    await AppDataSource.initialize()
+  }
+
+  const body = req.body as any
+  if (!body?.name) {
+    return res.status(400).json({ message: "Name is required" })
+  }
+
+  const repo = AppDataSource.getRepository(Tag)
+  const item = repo.create({ name: body.name })
+  await repo.save(item)
+
+  return res.json({ id: item.id, name: item.name })
 }

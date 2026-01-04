@@ -15,6 +15,8 @@
   "scripts": {
     "migrate": "dotenv -e .env -- medusa db:migrate",
     "migrate:custom": "dotenv -e .env -- yarn typeorm migration:run -d ./src/datasource/data-source.ts",
+    "seed:roles": "dotenv -e .env -- ts-node ./src/scripts/seed-roles.ts",
+    "create:admin": "dotenv -e .env -- ts-node ./src/scripts/create-admin.ts",
     "typeorm": "typeorm-ts-node-commonjs",
     "build": "medusa build",
     "seed": "medusa exec ./src/scripts/seed.ts",
@@ -29,6 +31,7 @@
     "@medusajs/cli": "2.12.3",
     "@medusajs/framework": "2.12.3",
     "@medusajs/medusa": "2.12.3",
+    "@stripe/react-stripe-js": "^5.4.1",
     "bcrypt": "^5.1.1",
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^7.0.12",

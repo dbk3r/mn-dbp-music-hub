@@ -10,13 +10,17 @@ import { Product } from "../models/product"
 import { ProductVariant } from "../models/product-variant"
 import { VariantFile } from "../models/variant-file"
 import { User } from "../models/user"
+import { Role } from "../models/role"
+import { Permission } from "../models/permission"
+import { Order } from "../models/order"
+import { SystemSetting } from "../models/system-setting"
 
 dotenv.config({ path: process.cwd() + "/.env" })
 
 export const AppDataSource = new DataSource({
   type: "postgres",
   url: process.env.DATABASE_URL,
-  entities: [Customer, Category, Tag, LicenseModel, AudioFile, Product, ProductVariant, VariantFile, User],
+  entities: [Customer, Category, Tag, LicenseModel, AudioFile, Product, ProductVariant, VariantFile, User, Role, Permission, Order, SystemSetting],
   migrations: [path.join(__dirname, "..", "migrations", "*.{ts,js}")],
   synchronize: false,
 })

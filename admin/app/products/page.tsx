@@ -33,7 +33,10 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch(adminApiUrl("/products"))
+    const token = localStorage.getItem('admin_auth_token')
+    const headers = token ? { Authorization: `Bearer ${token}` } : {}
+
+    fetch(adminApiUrl("/products"), { headers })
       .then((r) => r.json())
       .then((data) => setProducts(Array.isArray(data.items) ? data.items : []))
       .finally(() => setLoading(false))

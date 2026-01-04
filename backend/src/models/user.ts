@@ -1,9 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from "typeorm"
+import { Entity, PrimaryColumn, Column, CreateDateColumn, ManyToMany, JoinTable, Generated } from "typeorm"
+import { Role } from "./role"
 
 @Entity({ name: "user" })
 export class User {
-  @PrimaryGeneratedColumn()
-  id: number
+  @PrimaryColumn({ type: "text" })
+  @Generated("uuid")
+  id: string
 
   @Column({ type: "varchar", unique: true })
   email: string
@@ -17,6 +19,9 @@ export class User {
   @Column({ name: "avatar_url", type: "varchar", nullable: true })
   avatarUrl: string | null
 
+  @Column({ name: "is_active", type: "boolean", default: false })
+  isActive: boolean
+
   @Column({ name: "mfa_enabled", type: "boolean", default: false })
   mfaEnabled: boolean
 
@@ -25,6 +30,14 @@ export class User {
 
   @Column({ type: "varchar", default: "active" })
   status: string
+
+  @ManyToMany(() => Role, role => role.users, { eager: true })
+  @JoinTable({
+    name: "user_roles",
+    joinColumn: { name: "user_id" },
+    inverseJoinColumn: { name: "role_id" }
+  })
+  roles: Role[]
 
   @CreateDateColumn({ name: "created_at" })
   createdAt: Date
