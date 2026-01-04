@@ -52,6 +52,29 @@ export default function RootLayout({
     checkAuthStatus()
   }, [pathname])
 
+  // Intercept all client fetch calls and force login on 401/403 responses
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const originalFetch = window.fetch
+    window.fetch = async (...args: any[]) => {
+      try {
+        const res = await originalFetch(...args)
+        if (res && (res.status === 401 || res.status === 403)) {
+          localStorage.removeItem('admin_auth_token')
+          router.push('/login')
+        }
+        return res
+      } catch (err) {
+        // network error - rethrow
+        throw err
+      }
+    }
+
+    return () => {
+      window.fetch = originalFetch
+    }
+  }, [])
+
   const checkAuthStatus = async () => {
     // Skip auth check for login page (pathname includes basePath)
     if (pathname === '/login' || pathname === '/dbp-admin/login') {
@@ -71,6 +94,17 @@ export default function RootLayout({
       // Decode JWT to get user permissions
       const payloadBase64 = token.split('.')[1]
       const payload = JSON.parse(atob(payloadBase64))
+      // If token contains exp, check expiry (exp is in seconds)
+      if (payload && payload.exp) {
+        const nowSec = Math.floor(Date.now() / 1000)
+        if (nowSec >= payload.exp) {
+          // token expired
+          localStorage.removeItem('admin_auth_token')
+          router.push('/login')
+          setLoading(false)
+          return
+        }
+      }
       
       const roles = payload.roles || []
       const admin = roles.some((r: any) => r.name === 'admin')
