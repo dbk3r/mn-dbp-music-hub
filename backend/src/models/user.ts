@@ -28,6 +28,12 @@ export class User {
   @Column({ name: "mfa_secret", type: "varchar", nullable: true })
   mfaSecret: string | null
 
+  @Column({ name: "mfa_pin_hash", type: "varchar", nullable: true })
+  mfaPinHash: string | null
+
+  @Column({ name: "mfa_pin_expires_at", type: "timestamp", nullable: true })
+  mfaPinExpiresAt: Date | null
+
   @Column({ type: "varchar", default: "active" })
   status: string
 

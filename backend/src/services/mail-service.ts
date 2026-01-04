@@ -1,19 +1,21 @@
 import nodemailer from "nodemailer"
 
-export async function sendPinMail(to: string, pin: string): Promise<void> {
+export async function sendPinMail(to: string, pin: string) {
   const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT),
-  secure: process.env.SMTP_SECURE === "true",
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  }  
+    port: Number(process.env.SMTP_PORT),
+    secure: process.env.SMTP_SECURE === "true",
+    auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined,
   })
-  await transporter.sendMail({
-    from: '"Audio-Shop" <no-reply@example.com>',
+
+  const fromAddress = process.env.SMTP_FROM || process.env.SMTP_USER || 'no-reply@example.com'
+
+  const info = await transporter.sendMail({
+    from: fromAddress,
     to,
     subject: "Ihr Einmal-PIN",
-    text: `Ihr Einmal-Code lautet: ${pin}`
+    text: `Ihr Einmal-Code lautet: ${pin}`,
   })
+
+  return info
 }

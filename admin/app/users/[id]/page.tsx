@@ -34,6 +34,9 @@ export default function EditUserPage() {
   const [displayName, setDisplayName] = useState("")
   const [isActive, setIsActive] = useState(false)
   const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([])
+  const [mfaStage, setMfaStage] = useState<'idle'|'awaiting_pin'|'verified'>('idle')
+  const [pinInput, setPinInput] = useState('')
+  const [mfaLoading, setMfaLoading] = useState(false)
 
   useEffect(() => {
     if (userId) {
@@ -309,6 +312,97 @@ export default function EditUserPage() {
           >
             {saving ? "Speichert..." : "Speichern"}
           </button>
+        </div>
+        <div style={{ marginTop: 24, borderTop: '1px solid #eee', paddingTop: 24 }}>
+          <h3 style={{ marginBottom: 12 }}>MFA (E-Mail PIN)</h3>
+          {user?.mfa_enabled ? (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <div>Aktiviert</div>
+              <button
+                onClick={async () => {
+                  if (!confirm('MFA für diesen Benutzer deaktivieren?')) return
+                  setMfaLoading(true)
+                  const token = localStorage.getItem('admin_auth_token')
+                  const res = await fetch(adminApiUrl('/mfa/email/disable'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({ user_id: userId })
+                  })
+                  setMfaLoading(false)
+                  if (res.ok) {
+                    // refresh
+                    fetchData()
+                  } else {
+                    alert('Fehler beim Deaktivieren der MFA')
+                  }
+                }}
+                className="btn-danger"
+                style={{ padding: '8px 12px' }}
+              >
+                Deaktivieren
+              </button>
+            </div>
+          ) : (
+            <div>
+              {mfaStage === 'idle' && (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={async () => {
+                      setMfaLoading(true)
+                      const token = localStorage.getItem('admin_auth_token')
+                      const res = await fetch(adminApiUrl('/mfa/email/start'), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({ user_id: userId })
+                      })
+                      setMfaLoading(false)
+                      if (res.ok) {
+                        setMfaStage('awaiting_pin')
+                        alert('PIN wurde an die Nutzer-E-Mail gesendet')
+                      } else {
+                        alert('Fehler beim Senden des PINs')
+                      }
+                    }}
+                    className="btn-primary"
+                    style={{ padding: '8px 12px' }}
+                  >
+                    MFA aktivieren (PIN senden)
+                  </button>
+                </div>
+              )}
+
+              {mfaStage === 'awaiting_pin' && (
+                <div style={{ marginTop: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input value={pinInput} onChange={(e)=>setPinInput(e.target.value)} placeholder="PIN eingeben" style={{ padding: 8 }} />
+                  <button
+                    onClick={async () => {
+                      setMfaLoading(true)
+                      const token = localStorage.getItem('admin_auth_token')
+                      const res = await fetch(adminApiUrl('/mfa/email/verify'), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({ user_id: userId, pin: pinInput })
+                      })
+                      setMfaLoading(false)
+                      if (res.ok) {
+                        setMfaStage('verified')
+                        alert('MFA aktiviert')
+                        fetchData()
+                      } else {
+                        const data = await res.json().catch(()=>null)
+                        alert(data?.message || 'PIN ungültig')
+                      }
+                    }}
+                    className="btn-primary"
+                    style={{ padding: '8px 12px' }}
+                  >
+                    Verifizieren
+                  </button>
+                </div>
+              )}
+
+            </div>
+          )}
         </div>
       </div>
     </div>

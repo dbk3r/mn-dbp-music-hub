@@ -30,6 +30,11 @@ services:
       AUTH_CORS: http://localhost:5173,http://localhost:9000,http://localhost:8000
       PGSSLMODE: disable
       AUDIO_UPLOAD_DIR: /app/uploads
+      SMTP_HOST: web250.dogado.net
+      SMTP_PORT: "465"
+      SMTP_SECURE: "true"
+      SMTP_USER: info@dbp-music.de
+      SMTP_PASS: Nulleins01b#=
     depends_on:
       - postgres
       - redis
