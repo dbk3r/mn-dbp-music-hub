@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { adminApiUrl } from "../_lib/api";
 import { useCallback } from "react";
 
@@ -48,8 +48,18 @@ export default function LicenseModelCrud() {
       setError(`Laden fehlgeschlagen (${res.status})`);
       return;
     }
-    const data: { items: LicenseModelItem[] } = await res.json();
-    setItems(Array.isArray(data.items) ? data.items : []);
+    const data: { items: any[] } = await res.json();
+    const normalized = Array.isArray(data.items)
+      ? data.items.map((it) => ({
+          id: it.id,
+          name: it.name,
+          icon: it.icon ?? it.icon_identifier ?? null,
+          description: it.description ?? it.desc ?? null,
+          priceCents: it.priceCents ?? it.price_cents ?? 0,
+          legalDescription: it.legalDescription ?? it.legal_description ?? null,
+        }))
+      : []
+    setItems(normalized)
   }, [url]);
 
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -57,6 +67,7 @@ export default function LicenseModelCrud() {
   }
 
   function startEdit(item: LicenseModelItem) {
+    console.log("LicenseModelCrud.startEdit", item)
     setForm({
       id: item.id,
       name: item.name ?? "",
@@ -65,13 +76,22 @@ export default function LicenseModelCrud() {
       priceCents: String(item.priceCents ?? 0),
       legalDescription: item.legalDescription ?? "",
     });
+    // focus first input so edit is visible
+    setTimeout(() => {
+      nameRef.current?.focus()
+      nameRef.current?.select()
+      nameRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
+    }, 0)
   }
 
   function reset() {
     setForm(emptyForm);
   }
 
+  const nameRef = useRef<HTMLInputElement | null>(null)
+
   async function save() {
+    console.log("LicenseModelCrud.save", form)
     const name = form.name.trim();
     if (!name) return;
 
@@ -133,6 +153,10 @@ export default function LicenseModelCrud() {
     refresh().catch((e) => setError(String(e)));
   }, [refresh]);
 
+  useEffect(() => {
+    console.log("LicenseModelCrud.formChanged", form)
+  }, [form])
+
   return (
     <div className="space-y-4">
       <div>
@@ -143,6 +167,11 @@ export default function LicenseModelCrud() {
       </div>
 
       <div className="rounded border border-foreground/10 p-4">
+        {form.id ? (
+          <div className="mb-3 rounded border border-amber-400 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            Bearbeite Lizenzmodell #{form.id}
+          </div>
+        ) : null}
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1">
             <div className="text-sm">Name</div>
@@ -209,6 +238,10 @@ export default function LicenseModelCrud() {
           >
             Zurücksetzen
           </button>
+        </div>
+        <div className="mt-2 text-xs text-foreground/60">
+          <div className="font-medium">DEBUG — current form state</div>
+          <pre className="whitespace-pre-wrap rounded border border-foreground/10 bg-background p-2 text-xs">{JSON.stringify(form, null, 2)}</pre>
         </div>
       </div>
 

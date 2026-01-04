@@ -1,57 +1,31 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-import { AppDataSource } from "../../../../datasource/data-source"
-import { LicenseModel } from "../../../../models/license-model"
+import { AppDataSource } from "../../../../../datasource/data-source"
+import { LicenseModel } from "../../../../../models/license-model"
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
-  console.log("[custom/admin/license-models] auth header:", req.headers.authorization)
+  console.log("[custom/admin/license-models/:id] auth header:", req.headers.authorization)
   res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
   res.header("Access-Control-Allow-Headers", "Content-Type, x-publishable-api-key, Authorization");
 
   if (!AppDataSource.isInitialized) {
     await AppDataSource.initialize()
   }
 
-  const repo = AppDataSource.getRepository(LicenseModel)
-  const licenseModels = await repo.find()
-
-  const result = licenseModels.map(lm => ({
-    id: lm.id,
-    name: lm.name,
-    icon: lm.icon ?? null,
-    description: lm.description ?? null,
-    legal_description: lm.legalDescription ?? null,
-    price_cents: lm.priceCents,
-  }))
-
-  res.json({ items: result })
-}
-
-export async function POST(req: MedusaRequest, res: MedusaResponse) {
-  console.log("[custom/admin/license-models] auth header:", req.headers.authorization)
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE");
-  res.header("Access-Control-Allow-Headers", "Content-Type, x-publishable-api-key, Authorization");
-
-  if (!AppDataSource.isInitialized) {
-    await AppDataSource.initialize()
-  }
+  const id = Number((req as any).params?.id)
+  if (!id) return res.status(400).json({ message: "missing id" })
 
   const repo = AppDataSource.getRepository(LicenseModel)
-  const body = (req as any).body || {}
-  const lm = repo.create({
-    name: body.name,
-    priceCents: Number(body.priceCents) || 0,
-    description: body.description || null,
-  } as any)
-  const saved = await repo.save(lm as any)
-  return res.status(201).json(saved)
+  const lm = await repo.findOne({ where: { id } } as any)
+  if (!lm) return res.status(404).json({ message: "not found" })
+
+  return res.json(lm)
 }
 
 export async function PUT(req: MedusaRequest, res: MedusaResponse) {
-  console.log("[custom/admin/license-models] auth header:", req.headers.authorization)
+  console.log("[custom/admin/license-models/:id] auth header:", req.headers.authorization)
   res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE");
+  res.header("Access-Control-Allow-Methods", "GET, PUT, OPTIONS, DELETE");
   res.header("Access-Control-Allow-Headers", "Content-Type, x-publishable-api-key, Authorization");
 
   if (!AppDataSource.isInitialized) {
@@ -75,9 +49,9 @@ export async function PUT(req: MedusaRequest, res: MedusaResponse) {
 }
 
 export async function DELETE(req: MedusaRequest, res: MedusaResponse) {
-  console.log("[custom/admin/license-models] auth header:", req.headers.authorization)
+  console.log("[custom/admin/license-models/:id] auth header:", req.headers.authorization)
   res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE");
+  res.header("Access-Control-Allow-Methods", "GET, PUT, OPTIONS, DELETE");
   res.header("Access-Control-Allow-Headers", "Content-Type, x-publishable-api-key, Authorization");
 
   if (!AppDataSource.isInitialized) {
