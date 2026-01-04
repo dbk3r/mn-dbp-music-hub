@@ -22,14 +22,41 @@ export async function OPTIONS(req: MedusaRequest, res: MedusaResponse) {
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
-  // Try req.body first, fallback to manual parsing
-  let body = req.body
+  // Parse body once
+  let body: any = req.body
   if (!body || Object.keys(body).length === 0) {
     body = await readJsonBody(req).catch(() => ({}))
   }
 
   const { email, password } = body as { email?: string; password?: string }
-  
+  console.log("DEBUG admin/login body:", { email })
+
+  // Short-term: try forwarding to compatible custom admin login endpoint first
+  try {
+    const backendInternal = process.env.MEDUSA_BACKEND_INTERNAL_URL || "http://localhost:9000"
+    if (email && password) {
+      const forwardRes = await fetch(`${backendInternal}/custom/admin/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      })
+
+      // If the custom endpoint responded, return that response directly
+      if (forwardRes) {
+        const contentType = forwardRes.headers.get("content-type") || ""
+        if (contentType.includes("application/json")) {
+          const data = await forwardRes.json()
+          return res.status(forwardRes.status).json(data)
+        }
+        const text = await forwardRes.text()
+        return res.status(forwardRes.status).send(text)
+      }
+    }
+  } catch (err) {
+    console.error("admin/login forward error:", err)
+  }
+
+  // Validate input
   if (!email || !password) {
     return res.status(400).json({ message: "email and password required" })
   }
@@ -39,26 +66,26 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   }
 
   const repo = AppDataSource.getRepository(User)
-  const user = await repo.findOne({ 
+  const user = await repo.findOne({
     where: { email: String(email).toLowerCase().trim() } as any,
     relations: ["roles"]
   })
+  console.log("DEBUG admin/login user found:", !!user, user && user.id)
 
   if (!user) {
     return res.status(401).json({ message: "invalid credentials" })
   }
 
   const valid = await bcrypt.compare(String(password), user.passwordHash)
+  console.log("DEBUG admin/login password valid:", valid)
   if (!valid) {
     return res.status(401).json({ message: "invalid credentials" })
   }
 
-  // Prüfe ob User aktiviert ist
   if (!user.isActive) {
     return res.status(403).json({ message: "account not activated yet" })
   }
 
-  // Load roles with permissions
   const userWithPermissions = await repo.findOne({
     where: { id: user.id } as any,
     relations: ["roles", "roles.permissions"]
@@ -73,16 +100,12 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     return res.json({ mfa_required: true, temp_token: tempToken })
   }
 
-  // Include roles and permissions in JWT token
-  const token = jwt.sign({ 
+  const token = jwt.sign({
     userId: userWithPermissions.id,
     email: userWithPermissions.email,
     roles: userWithPermissions.roles.map(r => ({
       name: r.name,
-      permissions: r.permissions.map(p => ({
-        resource: p.resource,
-        action: p.action
-      }))
+      permissions: r.permissions.map(p => ({ resource: p.resource, action: p.action }))
     }))
   }, JWT_SECRET, { expiresIn: "7d" })
 

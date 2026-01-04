@@ -35,6 +35,8 @@ services:
       SMTP_SECURE: "true"
       SMTP_USER: info@dbp-music.de
       SMTP_PASS: Nulleins01b#=
+      ADMIN_EMAIL: bk.pc@gmx.de
+      ADMIN_PASSWORD: nulleins
     depends_on:
       - postgres
       - redis

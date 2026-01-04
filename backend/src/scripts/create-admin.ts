@@ -9,9 +9,9 @@ async function createAdminUser() {
     await AppDataSource.initialize()
   }
 
-  const email = "bk.pc@gmx.de"
-  const password = "nulleins"
-  const displayName = "Admin User"
+  const email = process.env.ADMIN_EMAIL || "bk.pc@gmx.de"
+  const password = process.env.ADMIN_PASSWORD || "nulleins"
+  const displayName = process.env.ADMIN_DISPLAY_NAME || "Admin User"
 
   const userRepo = AppDataSource.getRepository(User)
   const roleRepo = AppDataSource.getRepository(Role)
