@@ -17,13 +17,28 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
   const bearer = authHeader.slice(7)
   const serviceToken = process.env.BACKEND_SERVICE_TOKEN
+  const serviceKey = process.env.BACKEND_SERVICE_KEY
   if (!(serviceToken && bearer === serviceToken)) {
-    try {
-      const decoded = jwt.verify(bearer, JWT_SECRET) as any
-      if (decoded && decoded.mfaPending) return res.status(401).json({ message: "mfa verification required" })
-    } catch (err) {
-      console.error("custom settings auth verify failed:", err && (err as any).message ? (err as any).message : err)
-      return res.status(401).json({ message: "invalid token" })
+    let accepted = false
+    // 1) try service JWT signed with BACKEND_SERVICE_KEY
+    if (serviceKey) {
+      try {
+        const decodedSvc = jwt.verify(bearer, serviceKey, { algorithms: ["HS256"] }) as any
+        if (decodedSvc && decodedSvc.service === "admin") accepted = true
+      } catch (e) {
+        // ignore and try next
+      }
+    }
+
+    // 2) fallback: try user/admin JWT signed with JWT_SECRET
+    if (!accepted) {
+      try {
+        const decoded = jwt.verify(bearer, JWT_SECRET) as any
+        if (decoded && decoded.mfaPending) return res.status(401).json({ message: "mfa verification required" })
+        accepted = true
+      } catch (err) {
+        return res.status(401).json({ message: "invalid token" })
+      }
     }
   }
 
@@ -64,7 +79,6 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       const decoded = jwt.verify(bearer, JWT_SECRET) as any
       if (decoded && decoded.mfaPending) return res.status(401).json({ message: "mfa verification required" })
     } catch (err) {
-      console.error("custom settings auth verify failed:", err && (err as any).message ? (err as any).message : err)
       return res.status(401).json({ message: "invalid token" })
     }
   }

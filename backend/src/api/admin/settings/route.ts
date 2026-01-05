@@ -23,18 +23,31 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   }
   const bearer = authHeader.slice(7)
   const serviceToken = process.env.BACKEND_SERVICE_TOKEN
+  const serviceKey = process.env.BACKEND_SERVICE_KEY
   if (serviceToken && bearer === serviceToken) {
-    // allowed
+    // Deprecated path: accept but warn to migrate to service key
+    console.warn("Deprecation: BACKEND_SERVICE_TOKEN is deprecated. Please set BACKEND_SERVICE_KEY and rotate to service JWTs.")
   } else {
-    try {
-      const decoded = jwt.verify(bearer, JWT_SECRET) as any
-      if (decoded && decoded.mfaPending) {
-        return res.status(401).json({ message: "mfa verification required" })
+    let accepted = false
+    if (serviceKey) {
+      try {
+        const decodedSvc = jwt.verify(bearer, serviceKey, { algorithms: ["HS256"] }) as any
+        if (decodedSvc && decodedSvc.service === "admin") accepted = true
+      } catch (e) {
+        // ignore and try fallback
       }
-      // optionally: could validate user id exists; rely on JWT validity for now
-    } catch (err) {
-      console.error("settings auth verify failed:", err && (err as any).message ? (err as any).message : err)
-      return res.status(401).json({ message: "invalid token" })
+    }
+
+    if (!accepted) {
+      try {
+        const decoded = jwt.verify(bearer, JWT_SECRET) as any
+        if (decoded && decoded.mfaPending) {
+          return res.status(401).json({ message: "mfa verification required" })
+        }
+        accepted = true
+      } catch (err) {
+        return res.status(401).json({ message: "invalid token" })
+      }
     }
   }
 
