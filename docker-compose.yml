@@ -47,6 +47,12 @@ services:
 
     ports:
       - "9000:9000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
 
   frontend:
     image: node:20
@@ -55,7 +61,8 @@ services:
     environment:
       NEXT_PUBLIC_MEDUSA_BACKEND_URL: http://backend:9000
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     volumes:
       - ./frontend:/app
     ports:
@@ -70,7 +77,8 @@ services:
       NEXT_PUBLIC_BASE_PATH: /dbp-admin
       MEDUSA_BACKEND_INTERNAL_URL: http://backend:9000
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     volumes:
       - ./admin:/app
     ports:
