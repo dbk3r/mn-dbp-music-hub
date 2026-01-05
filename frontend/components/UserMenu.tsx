@@ -59,7 +59,7 @@ export default function UserMenu({ onClose }: UserMenuProps) {
         }}
       >
         <div style={{ padding: 12, borderBottom: "1px solid #eee" }}>
-          <div style={{ fontWeight: 600, fontSize: 14 }}>{user.display_name || "User"}</div>
+          <div style={{ fontWeight: 600, fontSize: 14, color: "#222" }}>{user.display_name || "User"}</div>
           <div style={{ fontSize: 12, color: "#666" }}>{user.email}</div>
         </div>
         <button
@@ -75,6 +75,7 @@ export default function UserMenu({ onClose }: UserMenuProps) {
             background: "transparent",
             border: "none",
             cursor: "pointer",
+            color: "#222",
             borderBottom: "1px solid #eee",
           }}
         >
@@ -95,6 +96,26 @@ export default function UserMenu({ onClose }: UserMenuProps) {
         >
           Abmelden
         </button>
+        <button
+          onClick={() => {
+            router.push("/account")
+            onClose()
+          }}
+          style={{
+            width: "100%",
+            textAlign: "left",
+            padding: "10px 12px",
+            fontSize: 14,
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            color: "#222",
+            borderTop: "1px solid #eee",
+          }}
+        >
+          Meine Käufe
+        </button>
+
       </div>
     </>
   )
