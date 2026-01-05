@@ -1,71 +1,63 @@
-import type { NextApiRequest, NextApiResponse } from "next"
+import { NextResponse } from "next/server"
 import { getBackendToken } from "../_backend"
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method === "GET") {
-    try {
-      const token = await getBackendToken()
-      if (!token) {
-        return res.status(500).json({ message: "Backend nicht verfügbar" })
-      }
+const backendUrl = process.env.BACKEND_URL || "http://localhost:9000"
 
-      // Get current settings from backend
-      const r = await fetch(`${process.env.BACKEND_URL || "http://localhost:9000"}/admin/settings`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-
-      if (!r.ok) {
-        // If backend doesn't have settings endpoint yet, return defaults
-        return res.json({
-          stripe_publishable_key: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "",
-          stripe_secret_key: "", // Don't expose secret key
-          stripe_webhook_secret: "", // Don't expose webhook secret
-        })
-      }
-
-      const data = await r.json()
-      return res.json(data)
-    } catch (error) {
-      console.error("Settings fetch error:", error)
-      return res.status(500).json({ message: "Fehler beim Laden der Einstellungen" })
+export async function GET() {
+  try {
+    const token = await getBackendToken()
+    if (!token) {
+      return NextResponse.json({ message: "Backend nicht verfügbar" }, { status: 500 })
     }
-  }
 
-  if (req.method === "POST") {
-    try {
-      const token = await getBackendToken()
-      if (!token) {
-        return res.status(500).json({ message: "Backend nicht verfügbar" })
-      }
+    const r = await fetch(`${backendUrl}/admin/settings`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
 
-      const { stripe_publishable_key, stripe_secret_key, stripe_webhook_secret } = req.body
-
-      // Update settings in backend
-      const r = await fetch(`${process.env.BACKEND_URL || "http://localhost:9000"}/admin/settings`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          stripe_publishable_key,
-          stripe_secret_key,
-          stripe_webhook_secret,
-        }),
+    if (!r.ok) {
+      // If backend doesn't have settings endpoint yet, return defaults
+      return NextResponse.json({
+        stripe_publishable_key: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "",
+        stripe_secret_key: "",
+        stripe_webhook_secret: "",
       })
-
-      if (!r.ok) {
-        return res.status(r.status).json({ message: "Fehler beim Speichern" })
-      }
-
-      const data = await r.json()
-      return res.json(data)
-    } catch (error) {
-      console.error("Settings save error:", error)
-      return res.status(500).json({ message: "Fehler beim Speichern der Einstellungen" })
     }
-  }
 
-  res.setHeader("Allow", ["GET", "POST"])
-  res.status(405).end(`Method ${req.method} Not Allowed`)
+    const data = await r.json()
+    return NextResponse.json(data)
+  } catch (error) {
+    console.error("Settings fetch error:", error)
+    return NextResponse.json({ message: "Fehler beim Laden der Einstellungen" }, { status: 500 })
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const token = await getBackendToken()
+    if (!token) {
+      return NextResponse.json({ message: "Backend nicht verfügbar" }, { status: 500 })
+    }
+
+    const body = await request.json().catch(() => ({}))
+    const { stripe_publishable_key, stripe_secret_key, stripe_webhook_secret } = body
+
+    const r = await fetch(`${backendUrl}/admin/settings`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ stripe_publishable_key, stripe_secret_key, stripe_webhook_secret }),
+    })
+
+    if (!r.ok) {
+      return NextResponse.json({ message: "Fehler beim Speichern" }, { status: r.status })
+    }
+
+    const data = await r.json()
+    return NextResponse.json(data)
+  } catch (error) {
+    console.error("Settings save error:", error)
+    return NextResponse.json({ message: "Fehler beim Speichern der Einstellungen" }, { status: 500 })
+  }
 }

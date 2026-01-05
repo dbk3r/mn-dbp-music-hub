@@ -54,6 +54,31 @@ export default function MainPage() {
   const [cart, setCart] = useState<CartItem[]>([])
   const [cartOpen, setCartOpen] = useState(false)
 
+  // Persist cart to localStorage so it survives reloads
+  useEffect(() => {
+    try {
+      if (typeof window === "undefined") return
+      const raw = localStorage.getItem("cart")
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed)) {
+          setCart(parsed)
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, [])
+
+  useEffect(() => {
+    try {
+      if (typeof window === "undefined") return
+      localStorage.setItem("cart", JSON.stringify(cart))
+    } catch (e) {
+      // ignore
+    }
+  }, [cart])
+
   const [checkoutStatus, setCheckoutStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
   const [checkoutTotalCents, setCheckoutTotalCents] = useState<number | undefined>(undefined)
   const [orderId, setOrderId] = useState<number | undefined>(undefined)

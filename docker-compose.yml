@@ -37,6 +37,8 @@ services:
       SMTP_PASS: Nulleins01b#=
       ADMIN_EMAIL: bk.pc@gmx.de
       ADMIN_PASSWORD: nulleins
+    env_file:
+      - ./backend/.env
     depends_on:
       - postgres
       - redis
@@ -76,6 +78,8 @@ services:
       NEXT_PUBLIC_MEDUSA_BACKEND_URL: http://backend:9000
       NEXT_PUBLIC_BASE_PATH: /dbp-admin
       MEDUSA_BACKEND_INTERNAL_URL: http://backend:9000
+    env_file:
+      - ./admin/.env
     depends_on:
       backend:
         condition: service_healthy

@@ -31,9 +31,9 @@ const menuItems: MenuItem[] = [
   { href: "/categories", label: "Kategorien", permission: { resource: "categories", action: "view" } },
   { href: "/tags", label: "Tags", permission: { resource: "tags", action: "view" } },
   { href: "/users", label: "User", permission: { resource: "users", action: "view" } },
-  { href: "/roles", label: "Rollen", permission: { resource: "roles", action: "view" } },
   { href: "/settings", label: "Benutzereinstellungen", permission: { resource: "settings", action: "view" } },
   { href: "/settings/system", label: "Systemeinstellungen", permission: { resource: "admin", action: "manage" } },
+  { href: "/settings/shop", label: "Shop-Verwaltung", permission: { resource: "settings", action: "edit" } },
 ]
 
 export default function RootLayout({
@@ -162,18 +162,39 @@ export default function RootLayout({
         }
       }
       
-      const roles = payload.roles || []
-      const admin = roles.some((r: any) => r.name === 'admin')
-      
-      // Collect all permissions from all roles
-      const permissions: Array<{ resource: string; action: string }> = []
-      roles.forEach((role: any) => {
-        if (role.permissions) {
-          permissions.push(...role.permissions)
-        }
-      })
+      const rolesRaw = payload.roles || []
 
-      setIsAdmin(admin)
+      // Normalize roles: roles may be strings or objects with name/permissions
+      const roleNames: string[] = []
+      const permissions: Array<{ resource: string; action: string }> = []
+      if (Array.isArray(rolesRaw)) {
+        rolesRaw.forEach((r: any) => {
+          if (!r) return
+          if (typeof r === 'string') {
+            roleNames.push(r.toLowerCase())
+          } else if (typeof r === 'object') {
+            if (r.name) roleNames.push(String(r.name).toLowerCase())
+            if (Array.isArray(r.permissions)) {
+              r.permissions.forEach((p: any) => {
+                if (p && p.resource && p.action) permissions.push({ resource: p.resource, action: p.action })
+              })
+            }
+          }
+        })
+      }
+
+      // Also accept explicit admin flag in token payload
+      const admin = roleNames.includes('admin') || payload.isAdmin === true
+
+      // If token does not indicate admin, treat as unauthenticated
+      if (!admin) {
+        localStorage.removeItem('admin_auth_token')
+        router.push('/login')
+        setLoading(false)
+        return
+      }
+
+      setIsAdmin(true)
       setUserPermissions(permissions)
       setIsAuthenticated(true)
       setLoading(false)

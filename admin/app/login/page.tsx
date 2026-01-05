@@ -31,8 +31,14 @@ export default function AdminLoginPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        if (response.status === 403 && data.message?.includes('not activated')) {
-          setError('Ihr Admin-Account wurde noch nicht aktiviert.');
+        if (response.status === 403) {
+          if (data.message?.includes('not activated')) {
+            setError('Ihr Admin-Account wurde noch nicht aktiviert.');
+          } else if (data.message?.includes('insufficient')) {
+            setError('Zugriff verweigert: Ihr Konto hat keine Admin-Rechte.');
+          } else {
+            setError(data.message || 'Login fehlgeschlagen');
+          }
         } else {
           setError(data.message || 'Login fehlgeschlagen');
         }

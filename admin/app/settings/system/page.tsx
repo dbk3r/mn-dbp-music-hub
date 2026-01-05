@@ -23,7 +23,10 @@ export default function SystemSettingsPage() {
 
   async function loadSettings() {
     try {
-      const r = await fetch("/api/settings")
+      const token = typeof window !== "undefined" ? localStorage.getItem("admin_auth_token") : null
+      const headers: Record<string, string> = {}
+      if (token) headers.Authorization = `Bearer ${token}`
+      const r = await fetch("/dbp-admin/api/settings", { headers })
       if (r.ok) {
         const data = await r.json()
         setSettings(data)
@@ -42,9 +45,12 @@ export default function SystemSettingsPage() {
     setMessage("")
 
     try {
-      const r = await fetch("/api/settings", {
+      const token = typeof window !== "undefined" ? localStorage.getItem("admin_auth_token") : null
+      const headers: Record<string, string> = { "Content-Type": "application/json" }
+      if (token) headers.Authorization = `Bearer ${token}`
+      const r = await fetch("/dbp-admin/api/settings", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(settings),
       })
 

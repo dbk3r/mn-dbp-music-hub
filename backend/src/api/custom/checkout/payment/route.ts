@@ -3,10 +3,9 @@ import Stripe from "stripe"
 import { AppDataSource } from "../../../../datasource/data-source"
 import { Order } from "../../../../models/order"
 import { setStoreCors } from "../../audio/_cors"
+import { SystemSettingsService } from "../../../../services/system-settings-service"
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2024-04-10",
-})
+// Stripe client will be created at runtime after reading secret from DB (or env fallback)
 
 async function readJsonBody(req: MedusaRequest): Promise<any> {
   const chunks: Buffer[] = []
@@ -34,6 +33,11 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   if (!AppDataSource.isInitialized) {
     await AppDataSource.initialize()
   }
+
+  const settingsService = new SystemSettingsService()
+  const stripeSettings = await settingsService.getStripeSettings()
+  const secretKey = stripeSettings.stripe_secret_key || process.env.STRIPE_SECRET_KEY || ""
+  const stripe = new Stripe(secretKey, { apiVersion: "2024-04-10" })
 
   const orderRepo = AppDataSource.getRepository(Order)
   const order = await orderRepo.findOne({ where: { id: body.order_id } as any })

@@ -11,7 +11,6 @@ type User = {
   is_active: boolean
   mfa_enabled: boolean
   status: string
-  roles: { id: number; name: string }[]
   created_at: string
 }
 
@@ -104,7 +103,6 @@ export default function UsersPage() {
             <tr style={{ background: "var(--input-bg)", borderBottom: "1px solid var(--input-border)" }}>
               <th style={{ padding: 12, textAlign: "left" }}>Email</th>
               <th style={{ padding: 12, textAlign: "left" }}>Name</th>
-              <th style={{ padding: 12, textAlign: "left" }}>Rollen</th>
               <th style={{ padding: 12, textAlign: "center" }}>Status</th>
               <th style={{ padding: 12, textAlign: "center" }}>Aktiv</th>
               <th style={{ padding: 12, textAlign: "center" }}>MFA</th>
@@ -125,13 +123,7 @@ export default function UsersPage() {
               >
                 <td style={{ padding: 12 }}>{user.email}</td>
                 <td style={{ padding: 12 }}>{user.display_name || "-"}</td>
-                <td style={{ padding: 12 }}>
-                  {user.roles.map((r) => (
-                    <span key={r.id} className="badge-active" style={{ marginRight: 4 }}>
-                      {r.name}
-                    </span>
-                  ))}
-                </td>
+                
                 <td style={{ padding: 12, textAlign: "center" }}>
                   <span className={user.status === "active" ? "badge-active" : "badge-draft"}>{user.status}</span>
                 </td>

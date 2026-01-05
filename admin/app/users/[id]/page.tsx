@@ -4,12 +4,6 @@ import { useState, useEffect } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { adminApiUrl } from "../../_lib/api"
 
-interface Role {
-  id: string
-  name: string
-  description?: string
-}
-
 interface User {
   id: string
   email: string
@@ -17,7 +11,6 @@ interface User {
   is_active: boolean
   mfa_enabled: boolean
   status: string
-  roles: Role[]
 }
 
 export default function EditUserPage() {
@@ -26,14 +19,13 @@ export default function EditUserPage() {
   const userId = params?.id as string
   
   const [user, setUser] = useState<User | null>(null)
-  const [availableRoles, setAvailableRoles] = useState<Role[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   
   const [displayName, setDisplayName] = useState("")
   const [isActive, setIsActive] = useState(false)
-  const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([])
+  
   const [mfaStage, setMfaStage] = useState<'idle'|'awaiting_pin'|'verified'>('idle')
   const [pinInput, setPinInput] = useState('')
   const [mfaLoading, setMfaLoading] = useState(false)
@@ -49,17 +41,13 @@ export default function EditUserPage() {
       const token = localStorage.getItem("admin_auth_token")
       const headers = { Authorization: `Bearer ${token}` }
 
-      const [usersRes, rolesRes] = await Promise.all([
-        fetch(adminApiUrl("/admin/users"), { headers }),
-        fetch(adminApiUrl("/admin/roles"), { headers }),
-      ])
+      const usersRes = await fetch(adminApiUrl("/admin/users"), { headers })
 
-      if (!usersRes.ok || !rolesRes.ok) {
+      if (!usersRes.ok) {
         throw new Error("Failed to fetch data")
       }
 
       const usersData = await usersRes.json()
-      const rolesData = await rolesRes.json()
 
       const currentUser = usersData.users.find((u: User) => u.id === userId)
       
@@ -70,8 +58,6 @@ export default function EditUserPage() {
       setUser(currentUser)
       setDisplayName(currentUser.display_name || "")
       setIsActive(currentUser.is_active)
-      setSelectedRoleIds(currentUser.roles.map(r => r.id))
-      setAvailableRoles(rolesData.roles)
     } catch (err: any) {
       setError(err.message || "Fehler beim Laden der Daten")
     } finally {
@@ -94,7 +80,7 @@ export default function EditUserPage() {
         body: JSON.stringify({
           display_name: displayName,
           is_active: isActive,
-          role_ids: selectedRoleIds,
+        
         }),
       })
 
@@ -110,13 +96,7 @@ export default function EditUserPage() {
     }
   }
 
-  const toggleRole = (roleId: string) => {
-    setSelectedRoleIds(prev =>
-      prev.includes(roleId)
-        ? prev.filter(id => id !== roleId)
-        : [...prev, roleId]
-    )
-  }
+  
 
   if (loading) {
     return (

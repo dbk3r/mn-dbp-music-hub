@@ -1,23 +1,7 @@
 "use client"
 import React, { useState, useEffect } from "react"
-import { loadStripe } from "@stripe/stripe-js"
 import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js"
-
-let stripePromise: Promise<any> | null = null
-
-function getStripePromise() {
-  if (!stripePromise) {
-    stripePromise = fetch("/api/config")
-      .then(res => res.json())
-      .then(config => {
-        if (!config.stripe_publishable_key) {
-          throw new Error("Stripe publishable key not configured")
-        }
-        return loadStripe(config.stripe_publishable_key)
-      })
-  }
-  return stripePromise
-}
+import { getStripePromise } from "../lib/stripe"
 
 type CartItem = {
   audioId?: number

@@ -31,30 +31,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const { email, password } = body as { email?: string; password?: string }
   console.log("DEBUG admin/login body:", { email })
 
-  // Short-term: try forwarding to compatible custom admin login endpoint first
-  try {
-    const backendInternal = process.env.MEDUSA_BACKEND_INTERNAL_URL || "http://localhost:9000"
-    if (email && password) {
-      const forwardRes = await fetch(`${backendInternal}/custom/admin/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      })
-
-      // If the custom endpoint responded, return that response directly
-      if (forwardRes) {
-        const contentType = forwardRes.headers.get("content-type") || ""
-        if (contentType.includes("application/json")) {
-          const data = await forwardRes.json()
-          return res.status(forwardRes.status).json(data)
-        }
-        const text = await forwardRes.text()
-        return res.status(forwardRes.status).send(text)
-      }
-    }
-  } catch (err) {
-    console.error("admin/login forward error:", err)
-  }
+  // Forwarding to /custom/admin/auth/login temporarily disabled for debugging.
+  // Use local DB-backed authentication below.
 
   // Validate input
   if (!email || !password) {
@@ -72,12 +50,25 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   })
   console.log("DEBUG admin/login user found:", !!user, user && user.id)
 
+  // Extra debug: show stored hash length (do not log full hash in production)
+  try {
+    console.log("DEBUG admin/login stored passwordHash length:", user && user.passwordHash ? user.passwordHash.length : null)
+  } catch (e) {
+    console.log("DEBUG admin/login could not read passwordHash", e)
+  }
+
   if (!user) {
     return res.status(401).json({ message: "invalid credentials" })
   }
 
-  const valid = await bcrypt.compare(String(password), user.passwordHash)
-  console.log("DEBUG admin/login password valid:", valid)
+  let valid = false
+  try {
+    valid = await bcrypt.compare(String(password), user.passwordHash)
+    console.log("DEBUG admin/login password valid:", valid)
+  } catch (err) {
+    console.error("DEBUG admin/login bcrypt.compare error:", err)
+    return res.status(500).json({ message: "internal auth error" })
+  }
   if (!valid) {
     return res.status(401).json({ message: "invalid credentials" })
   }
