@@ -22,13 +22,15 @@ export async function PATCH(req: NextRequest) {
   try {
     const auth = req.headers.get("authorization")
     const body = await req.json()
+    const bodyStr = JSON.stringify(body)
     const r = await fetch(`${BACKEND_URL}/custom/user/me`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
+        "Content-Length": String(Buffer.byteLength(bodyStr, "utf8")),
         ...(auth ? { Authorization: auth } : {}),
       },
-      body: JSON.stringify(body),
+      body: bodyStr,
     })
     const data = await r.json()
     return NextResponse.json(data, { status: r.status })

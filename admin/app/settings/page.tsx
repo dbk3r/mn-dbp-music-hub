@@ -18,7 +18,7 @@ export default function SettingsPage() {
   const [message, setMessage] = useState("")
 
   useEffect(() => {
-    const token = localStorage.getItem("admin_token")
+    const token = localStorage.getItem("admin_auth_token")
     if (!token) {
       setLoading(false)
       return
@@ -41,7 +41,7 @@ export default function SettingsPage() {
   }, [])
 
   async function handleSave() {
-    const token = localStorage.getItem("admin_token")
+    const token = localStorage.getItem("admin_auth_token")
     if (!token) return
 
     setSaving(true)

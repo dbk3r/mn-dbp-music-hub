@@ -40,16 +40,19 @@ export default function UserAvatar({ onClick }: UserAvatarProps) {
     .join("")
     .toUpperCase()
     .slice(0, 2)
+  const defaultAvatarSvg = `<?xml version='1.0' encoding='utf-8'?><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect fill='%23eaeaea' width='24' height='24' rx='4'/><g fill='%23888'><circle cx='12' cy='8' r='3'/><path d='M12 13c-4 0-6 2-6 4v1h12v-1c0-2-2-4-6-4z'/></g></svg>`
+  const defaultAvatar = `data:image/svg+xml;utf8,${encodeURIComponent(defaultAvatarSvg)}`
 
   return (
     <button
       onClick={onClick}
+      aria-label={user.display_name || user.email}
       style={{
         width: 40,
         height: 40,
         borderRadius: "50%",
         border: "2px solid #ddd",
-        background: user.avatar_url ? `url(${user.avatar_url}) center/cover` : "#e0e0e0",
+        background: user.avatar_url ? `url(${user.avatar_url}) center/cover` : `url(${defaultAvatar}) center/cover`,
         color: "#333",
         fontWeight: 600,
         fontSize: 14,
@@ -57,9 +60,8 @@ export default function UserAvatar({ onClick }: UserAvatarProps) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
+        overflow: "hidden",
       }}
-    >
-      {!user.avatar_url && initials}
-    </button>
+    />
   )
 }

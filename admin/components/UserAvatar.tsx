@@ -20,12 +20,26 @@ export default function UserAvatar() {
     if (stored) {
       try {
         setUser(JSON.parse(stored))
+        return
       } catch {}
+    }
+
+    // If no stored user but we have a token, fetch the user from the backend
+    const token = localStorage.getItem("admin_auth_token")
+    if (token) {
+      fetch('/api/user/me', { headers: { Authorization: `Bearer ${token}` } })
+        .then(async (r) => {
+          if (!r.ok) return
+          const data = await r.json()
+          setUser(data)
+          try { localStorage.setItem('admin_user', JSON.stringify(data)) } catch (e) {}
+        })
+        .catch(() => {})
     }
   }, [])
 
   function handleLogout() {
-    localStorage.removeItem("admin_token")
+    localStorage.removeItem("admin_auth_token")
     localStorage.removeItem("admin_user")
     router.push("/login")
   }

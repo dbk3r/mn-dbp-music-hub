@@ -75,6 +75,20 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   }
 
   // For now, skip MFA for admin login
+  // Respect MFA: if enabled, return a short-lived temp token for verification
+  if (user.mfaEnabled) {
+    const tempToken = jwt.sign({ userId: user.id, mfaPending: true }, JWT_SECRET, { expiresIn: "5m" })
+    return res.json({
+      mfa_required: true,
+      temp_token: tempToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        display_name: user.displayName,
+      },
+    })
+  }
+
   const token = jwt.sign({ 
     userId: user.id,
     roles: user.roles,
@@ -89,6 +103,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       email: user.email,
       display_name: user.displayName,
       avatar_url: user.avatarUrl,
+      mfa_enabled: user.mfaEnabled,
     },
   })
 }

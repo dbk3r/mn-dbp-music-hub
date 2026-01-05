@@ -23,13 +23,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === "PATCH") {
     try {
+      const bodyStr = JSON.stringify(req.body)
       const r = await fetch(`${BACKEND_URL}/custom/user/me`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
+          "Content-Length": String(Buffer.byteLength(bodyStr, "utf8")),
           Authorization: token,
         },
-        body: JSON.stringify(req.body),
+        body: bodyStr,
       })
       const data = await r.json()
       return res.status(r.status).json(data)
