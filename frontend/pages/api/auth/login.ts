@@ -8,6 +8,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
+    // Debug: log incoming headers to verify header forwarding
+    try {
+      console.log("[auth proxy] incoming headers:", req.headers)
+    } catch (e) {}
+
     // Forward cookies and publishable key from the original request
     const forwardHeaders: Record<string, string> = {
       "Content-Type": "application/json",
@@ -43,8 +48,43 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           headers: forwardHeaders,
           body: JSON.stringify(req.body),
         })
-        // If backend doesn't know this route, try next
-        if (r.status === 404) continue
+        // If backend doesn't know this route, try admin endpoints as a fallback
+        if (r.status === 404) {
+          // try admin endpoints explicitly
+          const adminEndpoints = [
+            `${BACKEND_URL}/custom/admin/auth/login`,
+            `${BACKEND_URL}/admin/auth/login`,
+          ]
+          for (const aep of adminEndpoints) {
+            try {
+              const ar = await fetch(aep, {
+                method: "POST",
+                headers: forwardHeaders,
+                body: JSON.stringify(req.body),
+              })
+              const aContentType = ar.headers.get("content-type") || ""
+              if (aContentType.includes("application/json")) {
+                const data = await ar.json()
+                // trigger PIN send if needed
+                try {
+                  if (data && data.mfa_required && data.user && data.user.id) {
+                    await fetch(`${BACKEND_URL}/custom/admin/mfa/email/start`, {
+                      method: "POST",
+                      headers: forwardHeaders,
+                      body: JSON.stringify({ user_id: data.user.id }),
+                    }).catch(() => {})
+                  }
+                } catch (e) {}
+                return res.status(ar.status).json(data)
+              }
+              const text = await ar.text()
+              return res.status(ar.status).send(text)
+            } catch (e) {
+              // ignore and try next admin endpoint
+            }
+          }
+          continue
+        }
 
         const contentType = r.headers.get("content-type") || ""
         // If store endpoint complains about missing publishable API key,
@@ -77,12 +117,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               }
             }
           }
+
+          // for other 400 JSON responses, return that JSON (we already consumed the body)
+          return res.status(r.status).json(errJson)
         }
 
         if (contentType.includes("application/json")) {
           const data = await r.json()
+          // If this was an admin fallback that returned MFA required, try to trigger PIN send
+          try {
+            if (data && data.mfa_required && data.user && data.user.id) {
+              // trigger server-side PIN send so store flow receives the email
+              await fetch(`${BACKEND_URL}/custom/admin/mfa/email/start`, {
+                method: "POST",
+                headers: forwardHeaders,
+                body: JSON.stringify({ user_id: data.user.id })
+              }).catch(() => {})
+            }
+          } catch (e) {
+            // ignore
+          }
           return res.status(r.status).json(data)
         }
+
         const text = await r.text()
         return res.status(r.status).send(text)
       } catch (err) {

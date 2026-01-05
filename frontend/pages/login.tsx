@@ -20,15 +20,20 @@ export default function LoginPage() {
     }
   }, [router])
 
+  const publishableKey = process.env.NEXT_PUBLIC_API_KEY || ""
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     setError("")
     setLoading(true)
 
     try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" }
+      if (publishableKey) headers["x-publishable-api-key"] = publishableKey
+
       const r = await fetch("/api/auth/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ email, password }),
       })
 
@@ -61,9 +66,12 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" }
+      if (publishableKey) headers["x-publishable-api-key"] = publishableKey
+
       const r = await fetch("/api/auth/mfa-verify", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ temp_token: tempToken, otp }),
       })
 
