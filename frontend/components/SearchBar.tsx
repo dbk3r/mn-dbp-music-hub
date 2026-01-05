@@ -98,7 +98,7 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
   }
 
   return (
-    <div style={{position:"sticky",top:"3.5em",zIndex:999,background:"#fafafa",boxShadow:"0 2px 8px #eee",padding:"1em"}}>
+    <div className="app-search">
       <button style={{float:"right"}} onClick={() => setCollapsed(c => !c)}>
         {collapsed ? "Suche öffnen" : "Suche schließen"}
       </button>

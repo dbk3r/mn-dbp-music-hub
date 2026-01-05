@@ -4,8 +4,11 @@
 :root {
   --background: #0a0a0a;
   --foreground: #ededed;
-  --primary: #0070f3;
-  --primary-hover: #0051cc;
+  --primary: #8a2000bf;
+  --primary-hover: #e49203;
+  --button-bg: var(--primary);
+  --button-text: #ffffff;
+  --button-bg-hover: var(--primary-hover);
   --secondary: #333;
   --card-bg: #1a1a1a;
   --card-border: #2a2a2a;
@@ -38,6 +41,24 @@
   --waveform-bar-played-end: #005bb5;
   --waveform-empty-bg: #333;
   --waveform-empty-text: #666;
+  /* Header / Search Hintergrund (kann vom Theme überschrieben werden) */
+  --app-header-bg: #36363663;
+  --app-header-text: #bbbbbb;
+  --app-header-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  --app-horizontal-padding: 20px;
+  /* Cart popup variables */
+  --cart-overlay-bg: rgba(0,0,0,0.4);
+  --cart-popup-bg: #1b1a1a;
+  --cart-popup-min-width: 620px;
+  --cart-popup-padding: 30px;
+  --cart-popup-border-radius: 4px;
+  /* License popup variables */
+  --license-overlay-bg: rgba(0,0,0,0.45);
+  --license-popup-bg: #1b1a1a;
+  --license-popup-padding: 32px;
+  --license-popup-radius: 4px;
+  --license-popup-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  --license-popup-min-width: 620px;
 }
 
 @layer base {
@@ -65,8 +86,8 @@
   }
 
   button {
-    background-color: var(--primary);
-    color: white;
+    background-color: var(--button-bg);
+    color: var(--button-text);
     border: none;
     padding: 10px 20px;
     border-radius: 4px;
@@ -77,7 +98,7 @@
   }
 
   button:hover {
-    background-color: var(--primary-hover);
+    background-color: var(--button-bg-hover);
   }
 
   button:disabled {
@@ -216,6 +237,174 @@
     border-radius: 8px;
     overflow: hidden;
     background: var(--player-waveform-bg);
+  }
+
+  /* Cart popup styles */
+  .cart-popup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--cart-overlay-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+  }
+
+  .cart-popup {
+    background: var(--cart-popup-bg) !important;
+    padding: var(--cart-popup-padding) !important;
+    border-radius: var(--cart-popup-border-radius)!important ;
+    min-width: var(--cart-popup-min-width) !important;
+    max-width: calc(100vw - 40px) !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+  }
+
+  /* Cart item layout */
+  .cart-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    align-items: center;
+  }
+
+  .cart-item-title {
+    font-weight: 700;
+  }
+
+  .cart-item-licdesc {
+    color: var(--text-muted);
+    font-size: 13px;
+    margin-top: 6px;
+  }
+
+  .cart-line-price {
+    text-align: right;
+    min-width: 140px;
+  }
+
+  .cart-totals {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,0.04);
+  }
+
+  .cart-totals .row {
+    display:flex;justify-content:space-between;padding:6px 0;font-weight:600;
+  }
+
+  /* License popup styles */
+  .license-popup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--license-overlay-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10001;
+  }
+
+  .license-popup {
+    background: var(--license-popup-bg) !important;
+    padding: var(--license-popup-padding) !important;
+    border-radius: var(--license-popup-radius) !important;
+    min-width: var(--license-popup-min-width) !important;
+    max-width: calc(100vw - 40px);
+    box-shadow: var(--license-popup-shadow) !important;
+  }
+
+  .license-option {
+    border: 2px solid #ececec;
+    background: #fafafa;
+    color: #333 !important;
+    border-radius: 2px !important;
+    padding: 18px 24px !important;
+    min-width: 120px !important;
+    cursor: pointer !important;
+    box-shadow: 0 1px 4px #efefef !important;
+    outline: none;
+  }
+
+  .license-option.selected {
+    border: 2px solid #e58f33 !important;
+    background: #e6faff !important;
+    box-shadow: 0 0 10px #c3f1ff !important;
+    outline: 2px solid #33b5e5 !important ;
+  }
+  
+  .license-popup h3 {
+    margin: 0 0 8px 0;
+    font-size: 18px;
+  }
+  
+  .license-options {
+    display: flex;
+    gap: 22px;
+    margin: 22px 0;
+  }
+  
+  .license-title {
+    font-weight: 600;
+    font-size: 16px;
+    margin-bottom: 9px;
+  }
+  
+  .license-desc {
+    font-size: 13px;
+    color: #555;
+  }
+  
+  .license-price {
+    margin-top: 10px;
+    color: #1994e2;
+    font-weight: 500;
+    font-size: 15px;
+  }
+
+  .license-popup-actions {
+    margin-top: 24px;
+    display: flex;
+    gap: 18px;
+  }
+
+  .license-popup-actions .btn-cancel {
+    background: #eee;
+    color: inherit;
+  }
+
+  /* App Header / Search Bar */
+  .app-header {
+    background: var(--app-header-bg) !important;
+    color: var(--app-header-text);
+    box-shadow: var(--app-header-shadow);
+    padding: 0.5em 1em;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+  }
+
+  .app-search {
+    background: var(--app-header-bg) !important;
+    color: var(--app-header-text);
+    box-shadow: var(--app-header-shadow);
+    padding: 1em;
+    position: sticky;
+    top: 3.5em;
+    z-index: 999;
+  }
+
+  /* Global container to provide consistent left/right padding */
+  .app-container {
+    padding-left: var(--app-horizontal-padding);
+    padding-right: var(--app-horizontal-padding);
+    box-sizing: border-box;
   }
 
   .audio-player-progress {

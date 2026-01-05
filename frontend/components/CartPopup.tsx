@@ -23,6 +23,7 @@ type CartItem = {
   audioId?: number
   title?: string
   licenseModelName?: string
+  licenseModelDescription?: string | null
   priceCents?: number
 }
 
@@ -49,6 +50,17 @@ export default function CartPopup({
     if (typeof cents !== "number" || !Number.isFinite(cents)) return "–"
     return (cents / 100).toFixed(2)
   }
+
+  const TAX_RATE = 0.19 // 19% assumed
+
+  function centsTax(cents: number | undefined) {
+    if (typeof cents !== "number" || !Number.isFinite(cents)) return 0
+    return Math.round(cents * TAX_RATE)
+  }
+
+  const subtotal = cart.reduce((s, it) => s + (it.priceCents || 0), 0)
+  const totalTax = cart.reduce((s, it) => s + centsTax(it.priceCents), 0)
+  const grandTotal = subtotal + totalTax
 
   const isLoading = checkoutStatus === "loading"
   const isSuccess = checkoutStatus === "success"
@@ -146,11 +158,8 @@ function PaymentForm({ orderId, checkoutTotalCents, onSuccess, onClose }: { orde
 }
 
   return (
-    <div style={{
-      position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.4)",
-      display:"flex",alignItems:"center",justifyContent:"center",zIndex:10000
-    }}>
-      <div style={{background:"#fff",padding:30,borderRadius:12,minWidth:340}}>
+    <div className="cart-popup-overlay" style={{ background: "var(--cart-overlay-bg)" }}>
+      <div className="cart-popup" style={{ background: "var(--cart-popup-bg)", padding: "var(--cart-popup-padding)", borderRadius: "var(--cart-popup-border-radius)", minWidth: "var(--cart-popup-min-width)" }}>
         <h2>Warenkorb</h2>
 
         {isLoading && (
@@ -167,12 +176,32 @@ function PaymentForm({ orderId, checkoutTotalCents, onSuccess, onClose }: { orde
           </div>
         )}
 
-        {cart.length === 0
-          ? <p>Ihr Warenkorb ist leer.</p>
-          :(<ul>{cart.map((i, k) =>
-            <li key={k}>{i.title} ({i.licenseModelName}) – {fmtPrice(i.priceCents)}€</li>
-          )}</ul>)
-        }
+        {cart.length === 0 ? (
+          <p>Ihr Warenkorb ist leer.</p>
+        ) : (
+          <div>
+            {cart.map((i, k) => (
+              <div className="cart-item" key={k}>
+                <div style={{flex:1}}>
+                  <div className="cart-item-title">{i.title} — {i.licenseModelName}</div>
+                  {i.licenseModelDescription ? (
+                    <div className="cart-item-licdesc">{i.licenseModelDescription}</div>
+                  ) : null}
+                </div>
+                <div className="cart-line-price">
+                  <div>Einzelpreis: {fmtPrice(i.priceCents)}€</div>
+                  <div style={{color: 'var(--text-muted)', fontSize: 13}}>Steuer ({Math.round(TAX_RATE*100)}%): {fmtPrice(centsTax(i.priceCents))}€</div>
+                </div>
+              </div>
+            ))}
+
+            <div className="cart-totals">
+              <div className="row"><div>Zwischensumme</div><div>{fmtPrice(subtotal)}€</div></div>
+              <div className="row"><div>Gesamt Steuer</div><div>{fmtPrice(totalTax)}€</div></div>
+              <div className="row" style={{fontSize:16}}><div>Gesamt</div><div>{fmtPrice(grandTotal)}€</div></div>
+            </div>
+          </div>
+        )}
 
         {orderId && (
           <Elements stripe={getStripePromise()}>

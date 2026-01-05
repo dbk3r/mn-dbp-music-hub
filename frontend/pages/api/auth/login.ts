@@ -8,11 +8,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    // Debug: log incoming headers to verify header forwarding
-    try {
-      console.log("[auth proxy] incoming headers:", req.headers)
-    } catch (e) {}
-
     // Forward cookies and publishable key from the original request
     const forwardHeaders: Record<string, string> = {
       "Content-Type": "application/json",

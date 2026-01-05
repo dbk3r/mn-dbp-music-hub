@@ -23,10 +23,13 @@ export default function HeaderMenu({ right }: HeaderMenuProps) {
   }, [])
   
   return (
-    <header style={{position:"sticky",top:0,zIndex:1000,background:"#fff",padding:"0.5em 1em",boxShadow:"0 2px 8px #eee",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+    <header className="app-header" style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
       <nav>
         <ul style={{listStyle:"none",display:"flex",gap:"2em",margin:0,padding:0}}>
-          {menu.map((item,i) => (
+          {[
+            { label: "Start", link: "/" },
+            ...menu,
+          ].map((item, i) => (
             <li key={i}><a href={item.link}>{item.label}</a></li>
           ))}
         </ul>

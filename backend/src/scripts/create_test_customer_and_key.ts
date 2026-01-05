@@ -4,7 +4,9 @@ import { createApiKeysWorkflow, linkSalesChannelsToApiKeyWorkflow } from "@medus
 
 export default async function run({ container }: ExecArgs) {
   const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
-  const customerService = container.resolve(Modules.CUSTOMER)
+  // Use the request-style customer service instance (has create/retrieveByEmail)
+  // Module APIs expose different shapes; resolve the runtime service by name.
+  const customerService = container.resolve("customerService") as any
   const salesChannelModuleService = container.resolve(Modules.SALES_CHANNEL)
 
   const testEmail = process.env.TEST_CUSTOMER_EMAIL || "test@example.com"
@@ -48,5 +50,6 @@ export default async function run({ container }: ExecArgs) {
     logger.info("Linked publishable API key to Default Sales Channel")
   }
 
-  logger.info(`Publishable key: ${publishableApiKey.key || publishableApiKey.public_key || publishableApiKey.access_key || publishableApiKey.token || publishableApiKey.title}`)
+  const pkAny = publishableApiKey as any
+  logger.info(`Publishable key: ${pkAny.key || pkAny.public_key || pkAny.access_key || pkAny.token || pkAny.title}`)
 }

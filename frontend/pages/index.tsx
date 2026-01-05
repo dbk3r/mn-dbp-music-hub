@@ -33,6 +33,7 @@ type CartItem = {
   title: string
   licenseModelId: number
   licenseModelName: string
+  licenseModelDescription?: string | null
   priceCents: number
 }
 
@@ -169,6 +170,7 @@ export default function MainPage() {
         title: audio.title,
         licenseModelId: license.id,
         licenseModelName: license.name,
+        licenseModelDescription: license.description ?? null,
         priceCents: license.price_cents,
       },
     ])
