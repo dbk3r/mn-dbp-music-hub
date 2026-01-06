@@ -62,6 +62,14 @@ export async function DELETE(req: MedusaRequest, res: MedusaResponse) {
   const user = await repo.findOne({ where: { id } } as any)
   if (!user) return res.status(404).json({ message: "not found" })
 
-  await repo.remove(user as any)
-  return res.json({ ok: true })
+  try {
+    // Clear relations that may block deletion (roles) then delete
+    user.roles = [] as any
+    await repo.save(user as any)
+    await repo.delete(id)
+    return res.json({ ok: true })
+  } catch (e) {
+    console.error("failed to delete user", e)
+    return res.status(500).json({ message: "failed to delete user" })
+  }
 }

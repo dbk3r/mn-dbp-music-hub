@@ -3,11 +3,13 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { adminApiUrl } from "../_lib/api"
+import UserCreate from "../_components/UserCreate"
 
 type User = {
   id: string
   email: string
   display_name: string | null
+  roles?: { id: string | number; name: string }[]
   is_active: boolean
   mfa_enabled: boolean
   status: string
@@ -19,6 +21,7 @@ export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showCreate, setShowCreate] = useState(false)
 
   useEffect(() => {
     loadUsers()
@@ -95,6 +98,9 @@ export default function UsersPage() {
     <div className="page-container">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <h1>Benutzerverwaltung</h1>
+        <div>
+          <button className="btn-primary" onClick={() => setShowCreate(true)}>Neuen Benutzer</button>
+        </div>
       </div>
 
       <div style={{ background: "var(--card-bg)", borderRadius: 8, overflow: "hidden" }}>
@@ -103,6 +109,7 @@ export default function UsersPage() {
             <tr style={{ background: "var(--input-bg)", borderBottom: "1px solid var(--input-border)" }}>
               <th style={{ padding: 12, textAlign: "left" }}>Email</th>
               <th style={{ padding: 12, textAlign: "left" }}>Name</th>
+              <th style={{ padding: 12, textAlign: "left" }}>Rollen</th>
               <th style={{ padding: 12, textAlign: "center" }}>Status</th>
               <th style={{ padding: 12, textAlign: "center" }}>Aktiv</th>
               <th style={{ padding: 12, textAlign: "center" }}>MFA</th>
@@ -123,6 +130,7 @@ export default function UsersPage() {
               >
                 <td style={{ padding: 12 }}>{user.email}</td>
                 <td style={{ padding: 12 }}>{user.display_name || "-"}</td>
+                <td style={{ padding: 12 }}>{(user.roles && user.roles.length > 0) ? user.roles.map(r => r.name).join(", ") : "-"}</td>
                 
                 <td style={{ padding: 12, textAlign: "center" }}>
                   <span className={user.status === "active" ? "badge-active" : "badge-draft"}>{user.status}</span>
@@ -170,6 +178,7 @@ export default function UsersPage() {
           </div>
         )}
       </div>
+      {showCreate && <UserCreate onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); loadUsers() }} />}
     </div>
   )
 }

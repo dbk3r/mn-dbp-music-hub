@@ -19,3 +19,24 @@ export async function GET(req: NextRequest) {
   const data = await res.json().catch(() => ({}));
   return NextResponse.json(data, { status: res.status });
 }
+
+export async function POST(req: NextRequest) {
+  const headers = buildHeadersFromReq(req)
+  try {
+    const body = await req.json().catch(() => ({}))
+    const res = await fetch(backendUrl("/custom/admin/users"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...headers },
+      body: JSON.stringify(body),
+    })
+    const contentType = res.headers.get("content-type") || ""
+    if (contentType.includes("application/json")) {
+      const data = await res.json().catch(() => ({}))
+      return NextResponse.json(data, { status: res.status })
+    }
+    const text = await res.text().catch(() => "")
+    return NextResponse.json({ body: text }, { status: res.status })
+  } catch (e: any) {
+    return NextResponse.json({ message: String(e) }, { status: 502 })
+  }
+}

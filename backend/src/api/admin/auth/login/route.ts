@@ -108,6 +108,9 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       display_name: userWithPermissions.displayName,
       avatar_url: userWithPermissions.avatarUrl,
       mfa_enabled: userWithPermissions.mfaEnabled,
+      // expose roles and admin flag so frontend can treat admin users like customers
+      roles: userWithPermissions.roles ? userWithPermissions.roles.map(r => r.name) : [],
+      is_admin: Array.isArray(userWithPermissions.roles) && userWithPermissions.roles.some(r => /admin/i.test(r.name)),
     },
   })
 }

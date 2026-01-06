@@ -164,7 +164,7 @@ tr:hover {
 
 /* Cards */
 .card {
-  background: var(--card-bg);
+  background: var(--card-bg) !important;
   border: 1px solid var(--card-border);
   border-radius: 8px;
   padding: 20px;

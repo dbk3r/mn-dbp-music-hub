@@ -49,21 +49,48 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
   if (!AppDataSource.isInitialized) await AppDataSource.initialize()
   try {
-    const repo = AppDataSource.getRepository(Order)
-    // Use TypeORM repository to load orders. If there is a genuine mapping
-    // issue it should be fixed in the entity definition instead of using
-    // raw SQL fallbacks.
-    const orders = await repo.find({ order: { createdAt: "DESC" } })
-    const count = await repo.count()
-    const finalOrders = Array.isArray(orders) ? orders : []
+    // Fetch orders joined with customer info and return buyer name/email and
+    // purchased product titles. Use raw SQL for a stable shape that works
+    // independently of TypeORM mapping issues.
+    const rows: any[] = await AppDataSource.query(`
+      SELECT o.id, o.order_id, o.status, o."totalPriceCents", o."currencyCode", o.items, o."createdAt",
+             c.email as customer_email, c.first_name as customer_first_name, c.last_name as customer_last_name
+      FROM orders o
+      LEFT JOIN customer c ON c.id::text = o."customerId"::text
+      ORDER BY o."createdAt" DESC
+    `)
 
-    // Map to admin-friendly shape
+    const finalOrders = (rows || []).map((r: any) => {
+      let items = r.items
+      try {
+        if (typeof items === 'string' && items.trim()) items = JSON.parse(items)
+      } catch (e) {
+        items = []
+      }
+      const productTitles = Array.isArray(items) ? items.map((it: any) => it.title).filter(Boolean) : []
+      return {
+        id: r.order_id || (`order_${r.id}`),
+        numeric_id: r.id,
+        status: (r.status || '').toUpperCase(),
+        totalPriceCents: r.totalPriceCents || 0,
+        currencyCode: r.currencyCode || 'EUR',
+        customer_email: r.customer_email || null,
+        customer_name: [r.customer_first_name, r.customer_last_name].filter(Boolean).join(' ') || null,
+        createdAt: r.createdAt,
+        items: items || [],
+        product_titles: productTitles,
+      }
+    })
+
+    // Map to admin-friendly shape including buyer name/email and product titles
     const out = (finalOrders || []).map((o: any) => ({
       id: `order_${o.id}`,
       status: (o.status && typeof o.status === 'string') ? o.status.toUpperCase() : null,
       totalPriceCents: o.totalPriceCents || o.totalpricecents || 0,
       currency: o.currencyCode || o.currencycode || 'EUR',
-      customer_email: null,
+      customer_email: o.customer_email || null,
+      customer_name: o.customer_name || null,
+      product_titles: Array.isArray(o.product_titles) ? o.product_titles : (o.product_titles ? String(o.product_titles).split(',').map((s: string) => s.trim()) : []),
       created_at: o.createdAt || o.createdat || null,
       items: o.items || []
     }))

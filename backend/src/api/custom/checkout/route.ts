@@ -110,6 +110,48 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     console.log("[checkout] user->customer mapping error:", String(err))
   }
 
+  // If still using fallback customerId, try to map by email claim in the token
+  try {
+    if (!customerId || customerId === "1") {
+      const verified = jwt.verify(token, JWT_SECRET) as any
+      const tokenEmail = (verified && (verified.email || verified.emailAddress)) ? String(verified.email || verified.emailAddress) : null
+      if (tokenEmail) {
+        if (!AppDataSource.isInitialized) await AppDataSource.initialize()
+        try {
+          const rows: any[] = await AppDataSource.query(`SELECT id FROM customer WHERE lower(email) = lower($1) LIMIT 1`, [tokenEmail])
+          if (rows && rows.length > 0 && rows[0].id != null) {
+            customerId = String(rows[0].id)
+          } else {
+            const name = (verified && verified.display_name) || (verified && verified.displayName) || ""
+            const [first = "", last = ""] = String(name || "").split(" ")
+            let newId: string
+            try {
+              newId = (crypto && (crypto as any).randomUUID) ? (crypto as any).randomUUID() : `cust_${Date.now()}`
+            } catch (e) {
+              newId = `cust_${Date.now()}`
+            }
+            const insertRes: any = await AppDataSource.query(
+              `INSERT INTO customer (id, email, first_name, last_name)
+               VALUES ($1, $2, $3, $4)
+               RETURNING id`,
+              [newId, tokenEmail, first, last]
+            )
+            if (insertRes && insertRes[0] && insertRes[0].id != null) {
+              customerId = String(insertRes[0].id)
+            } else {
+              customerId = newId
+            }
+          }
+        } catch (e) {
+          // ignore errors, keep fallback
+          console.log('[checkout] token-email customer lookup/create failed:', String(e))
+        }
+      }
+    }
+  } catch (e) {
+    // ignore verification errors here — best-effort
+  }
+
   // Debug: log headers for incoming request
   // eslint-disable-next-line no-console
   console.log("[checkout] method:", req.method, "url:", req.url)
@@ -230,21 +272,61 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   }
 
   // Create order with authenticated customer
-  const order = orderRepo.create({
-    customerId,
-    status: OrderStatus.PENDING,
-    totalPriceCents,
-    currencyCode: "EUR",
-    items: detailed,
-  })
+  // Ensure sequence and column for server-side order id generation
+  try {
+    await AppDataSource.query(`CREATE SEQUENCE IF NOT EXISTS orders_seq`)
+    await AppDataSource.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS order_id varchar`)
+  } catch (e) {
+    console.log('[checkout] ensure seq/column failed', String(e))
+  }
 
-  await orderRepo.save(order)
+  // get next sequence value
+  let seqVal = 0
+  try {
+    const rows: any[] = await AppDataSource.query(`SELECT nextval('orders_seq') as v`)
+    if (rows && rows[0] && rows[0].v != null) seqVal = Number(rows[0].v)
+  } catch (e) {
+    console.log('[checkout] nextval failed', String(e))
+  }
 
-  return res.json({
-    order_id: order.id,
-    items: detailed,
-    total_price_cents: totalPriceCents,
-    currency_code: "eur",
-    status: "pending",
-  })
+  const now = new Date()
+  const dd = String(now.getDate()).padStart(2, '0')
+  const mm = String(now.getMonth() + 1).padStart(2, '0')
+  const yyyy = String(now.getFullYear())
+  const orderId = `${dd}${mm}${yyyy}_${seqVal}`
+
+  // Insert order via raw SQL to include generated order_id (avoid schema migration step)
+  try {
+    const insertRes: any = await AppDataSource.query(
+      `INSERT INTO orders ("customerId", status, "totalPriceCents", "currencyCode", items, "createdAt", "updatedAt", order_id)
+       VALUES ($1, $2, $3, $4, $5, now(), now(), $6)
+       RETURNING id, order_id`,
+      [customerId, OrderStatus.PENDING, totalPriceCents, 'EUR', JSON.stringify(detailed), orderId]
+    )
+    const created = insertRes && insertRes[0] ? insertRes[0] : null
+    return res.json({
+      order_id: created ? created.order_id : orderId,
+      items: detailed,
+      total_price_cents: totalPriceCents,
+      currency_code: 'eur',
+      status: 'pending',
+    })
+  } catch (e) {
+    console.log('[checkout] insert failed, falling back to TypeORM save', String(e))
+    const order = orderRepo.create({
+      customerId,
+      status: OrderStatus.PENDING,
+      totalPriceCents,
+      currencyCode: "EUR",
+      items: detailed,
+    })
+    await orderRepo.save(order)
+    return res.json({
+      order_id: order.id,
+      items: detailed,
+      total_price_cents: totalPriceCents,
+      currency_code: "eur",
+      status: "pending",
+    })
+  }
 }

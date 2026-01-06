@@ -8,17 +8,38 @@ export default function AccountPage() {
   const [orders, setOrders] = useState<Order[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // compatibility no-op in case leftover calls to setDebugInfo exist elsewhere
+  const setDebugInfo = (_: any) => {}
 
   useEffect(() => {
     const token = localStorage.getItem("user_token")
     const pk = process.env.NEXT_PUBLIC_API_KEY || ""
+    const stored = localStorage.getItem("user_data")
+
     if (!token) {
       setError("Bitte zuerst einloggen")
       return
     }
 
+    // rudimentärer Rollencheck: prüfe gängige Felder auf Admin-Rechte
+    let isAdmin = false
+    try {
+      if (stored) {
+        const u = JSON.parse(stored)
+        if (u) {
+          if (u.is_admin) isAdmin = true
+          if (Array.isArray(u.roles) && u.roles.includes("admin")) isAdmin = true
+          if (typeof u.role === "string" && /(admin|administrator)/i.test(u.role)) isAdmin = true
+        }
+      }
+    } catch (e) {
+      // ignore parse errors
+    }
+
+    const endpoint = isAdmin ? "/api/admin/orders" : "/api/store/orders"
+
     setLoading(true)
-    fetch("/api/store/orders", {
+    fetch(endpoint, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -26,15 +47,57 @@ export default function AccountPage() {
         ...(pk ? { "x-publishable-api-key": pk } : {}),
       },
     })
-      .then((r) => r.json())
-      .then((data) => {
-        if (Array.isArray(data)) setOrders(data)
-        else if (data.orders) setOrders(data.orders)
-        else setOrders([])
+      .then(async (r) => {
+        const text = await r.text()
+        let data: any = null
+        try {
+          data = text ? JSON.parse(text) : null
+        } catch (e) {
+          data = text
+        }
+        // debug info removed
+
+        // If store endpoint rejects with 401, try admin endpoint as fallback
+        if (!r.ok && r.status === 401 && endpoint === "/api/store/orders") {
+          try {
+            const ar = await fetch("/api/admin/orders", {
+              method: "GET",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+                ...(pk ? { "x-publishable-api-key": pk } : {}),
+              },
+            })
+            const atext = await ar.text()
+            let adata: any = null
+            try { adata = atext ? JSON.parse(atext) : null } catch (e) { adata = atext }
+            if (ar.ok) {
+              if (Array.isArray(adata)) setOrders(adata)
+              else if (adata && adata.orders) setOrders(adata.orders)
+              else setOrders([])
+            } else {
+              setError(typeof adata === 'string' ? adata : JSON.stringify(adata))
+            }
+            return
+          } catch (e) {
+            setError(String(e))
+            return
+          }
+        }
+
+        if (r.ok) {
+          if (Array.isArray(data)) setOrders(data)
+          else if (data && data.orders) setOrders(data.orders)
+          else setOrders([])
+        } else {
+          setError(typeof data === 'string' ? data : JSON.stringify(data))
+        }
       })
       .catch((e) => setError(String(e)))
       .finally(() => setLoading(false))
   }, [])
+
+  
 
   return (
     <div>
@@ -88,6 +151,7 @@ export default function AccountPage() {
             ))}
           </div>
         )}
+        
       </main>
     </div>
   )

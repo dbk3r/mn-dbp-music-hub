@@ -13,6 +13,9 @@ export class Order {
   @PrimaryGeneratedColumn()
   id: number
 
+  @Column({ name: 'order_id', type: 'varchar', nullable: true })
+  orderId: string | null
+
   @Column({ type: "varchar" })
   customerId: string
 
