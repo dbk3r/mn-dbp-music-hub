@@ -31,9 +31,11 @@ const menuItems: MenuItem[] = [
   { href: "/categories", label: "Kategorien", permission: { resource: "categories", action: "view" } },
   { href: "/tags", label: "Tags", permission: { resource: "tags", action: "view" } },
   { href: "/users", label: "User", permission: { resource: "users", action: "view" } },
+  { href: "/orders", label: "Bestellungen", permission: { resource: "orders", action: "view" } },
   { href: "/settings", label: "Benutzereinstellungen", permission: { resource: "settings", action: "view" } },
   { href: "/settings/system", label: "Systemeinstellungen", permission: { resource: "admin", action: "manage" } },
   { href: "/settings/shop", label: "Shop-Verwaltung", permission: { resource: "settings", action: "edit" } },
+  { href: "/settings/paypal", label: "PayPal-Einstellungen", permission: { resource: "settings", action: "edit" } },
 ]
 
 export default function RootLayout({
@@ -64,6 +66,33 @@ export default function RootLayout({
         const headers = new Headers(opts.headers || {})
         const hadAuthHeader = headers.has('Authorization')
         const tokenPresent = !!localStorage.getItem('admin_auth_token')
+
+        // If a client token exists, check expiry before issuing the request.
+        // If expired and this looks like an admin call, force login immediately
+        // to avoid the UI performing the request and receiving a 401 HTML login page.
+        try {
+          const clientToken = localStorage.getItem('admin_auth_token')
+          if (clientToken) {
+            const parts = clientToken.split('.')
+            if (parts.length >= 2) {
+              const payload = JSON.parse(atob(parts[1]))
+              if (payload && payload.exp) {
+                const nowSec = Math.floor(Date.now() / 1000)
+                if (nowSec >= payload.exp) {
+                  const originUrl = String(urlArg || '')
+                  const looksLikeAdminCall = originUrl.includes('/admin') || originUrl.includes('/dbp-admin') || hadAuthHeader
+                  if (looksLikeAdminCall) {
+                    localStorage.removeItem('admin_auth_token')
+                    router.push('/login')
+                    return new Response(JSON.stringify({ error: 'token_expired' }), { status: 401, headers: { 'Content-Type': 'application/json' } })
+                  }
+                }
+              }
+            }
+          }
+        } catch (e) {
+          // ignore parsing errors and continue
+        }
 
         const res: Response = await originalFetch(...args)
 
@@ -141,6 +170,24 @@ export default function RootLayout({
     const token = localStorage.getItem('admin_auth_token')
     
     if (!token) {
+      // Try server-side service token before forcing login. This allows a
+      // development environment with a configured service token to access
+      // admin pages even without a client token.
+      try {
+        const res = await fetch('/dbp-admin/api/server-auth-status')
+        if (res.ok) {
+          const data = await res.json()
+          if (data?.available) {
+            setIsAdmin(true)
+            setIsAuthenticated(true)
+            setLoading(false)
+            return
+          }
+        }
+      } catch (e) {
+        // ignore and fall through to login
+      }
+
       router.push('/login')
       setLoading(false)
       return

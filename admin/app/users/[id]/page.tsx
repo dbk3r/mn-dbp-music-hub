@@ -25,6 +25,8 @@ export default function EditUserPage() {
   
   const [displayName, setDisplayName] = useState("")
   const [isActive, setIsActive] = useState(false)
+  const [availableRoles, setAvailableRoles] = useState<Array<{ id: number; name: string; description?: string }>>([])
+  const [selectedRoleIds, setSelectedRoleIds] = useState<number[]>([])
   
   const [mfaStage, setMfaStage] = useState<'idle'|'awaiting_pin'|'verified'>('idle')
   const [pinInput, setPinInput] = useState('')
@@ -41,10 +43,13 @@ export default function EditUserPage() {
       const token = localStorage.getItem("admin_auth_token")
       const headers = { Authorization: `Bearer ${token}` }
 
-      const usersRes = await fetch(adminApiUrl("/admin/users"), { headers })
+      const [usersRes, rolesRes] = await Promise.all([
+        fetch(adminApiUrl("/admin/users"), { headers }),
+        fetch(adminApiUrl("/roles"), { headers }),
+      ])
 
       if (!usersRes.ok) {
-        throw new Error("Failed to fetch data")
+        throw new Error("Failed to fetch users")
       }
 
       const usersData = await usersRes.json()
@@ -58,11 +63,23 @@ export default function EditUserPage() {
       setUser(currentUser)
       setDisplayName(currentUser.display_name || "")
       setIsActive(currentUser.is_active)
+      // set initial selected roles from user
+      setSelectedRoleIds((currentUser.roles || []).map((r: any) => Number(r.id)))
+
+      // load available roles if endpoint returned
+      if (rolesRes && rolesRes.ok) {
+        const rolesData = await rolesRes.json()
+        setAvailableRoles(rolesData.roles || [])
+      }
     } catch (err: any) {
       setError(err.message || "Fehler beim Laden der Daten")
     } finally {
       setLoading(false)
     }
+  }
+
+  const toggleRole = (roleId: number) => {
+    setSelectedRoleIds(prev => prev.includes(roleId) ? prev.filter(id => id !== roleId) : [...prev, roleId])
   }
 
   const handleSave = async () => {
@@ -80,6 +97,7 @@ export default function EditUserPage() {
         body: JSON.stringify({
           display_name: displayName,
           is_active: isActive,
+          role_ids: selectedRoleIds,
         
         }),
       })

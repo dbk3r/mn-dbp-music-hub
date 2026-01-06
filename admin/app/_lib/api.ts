@@ -5,7 +5,7 @@ export function adminBasePath(): string {
 export function adminApiUrl(path: string): string {
   const base = adminBasePath();
   const normalized = path.startsWith("/") ? path : `/${path}`;
-  // Avoid double "/admin" when callers already include it (some files call adminApiUrl("/admin/...")
-  const withoutAdmin = normalized.startsWith("/admin") ? normalized.replace(/^\/admin/, "") : normalized;
-  return `${base}/admin${withoutAdmin}`;
+  // Accept callers using either "/admin/..." or "/api/..." and normalize to "/api/..."
+  const withoutPrefix = normalized.replace(/^\/(admin|api)/, "")
+  return `${base}/api/${withoutPrefix.replace(/^\//, "")}`
 }

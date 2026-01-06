@@ -15,11 +15,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const settings = await response.json()
       return res.json({
         stripe_publishable_key: settings.stripe_publishable_key || "",
+        paypal_client_id: settings.paypal_client_id || "",
       })
     } else {
       // Fallback to environment variable
       return res.json({
         stripe_publishable_key: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "",
+        paypal_client_id: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "",
       })
     }
   } catch (error) {
@@ -27,6 +29,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Fallback to environment variable
     return res.json({
       stripe_publishable_key: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "",
+      paypal_client_id: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "",
     })
   }
 }

@@ -53,6 +53,7 @@ export default function MainPage() {
 
   const [cart, setCart] = useState<CartItem[]>([])
   const [cartOpen, setCartOpen] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
 
   // Persist cart to localStorage so it survives reloads
   useEffect(() => {
@@ -82,6 +83,8 @@ export default function MainPage() {
   const [checkoutStatus, setCheckoutStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
   const [checkoutTotalCents, setCheckoutTotalCents] = useState<number | undefined>(undefined)
   const [orderId, setOrderId] = useState<number | undefined>(undefined)
+  const [paymentMethod, setPaymentMethod] = useState<string | undefined>(undefined)
+  const [billingName, setBillingName] = useState<string | undefined>(undefined)
 
   async function checkout() {
     if (!cart.length) return
@@ -122,6 +125,27 @@ export default function MainPage() {
     } catch {
       setCheckoutStatus("error")
     }
+  }
+
+  function handleOrderCreated(payload: { order_id?: number; total_price_cents?: number; payment_method?: string }) {
+    const total = typeof payload.total_price_cents === "number" ? payload.total_price_cents : 0
+    setCheckoutTotalCents(total)
+    if (typeof payload.order_id === "number") setOrderId(payload.order_id)
+    setCheckoutStatus("success")
+    if (payload.payment_method) setPaymentMethod(payload.payment_method)
+    if ((payload as any).billing_name) setBillingName((payload as any).billing_name)
+    if ((payload as any).card_holder_name && !(payload as any).billing_name) setBillingName((payload as any).card_holder_name)
+    // If total is 0 or payment_method is 'free', finalize immediately
+    if (total === 0 || payload.payment_method === 'free') {
+      setCart([])
+      setCartOpen(false)
+      setCheckoutStatus('idle')
+      setCheckoutTotalCents(undefined)
+      setOrderId(undefined)
+      setPaymentMethod(undefined)
+      setBillingName(undefined)
+    }
+    // Note: otherwise payment flow (Stripe/PayPal) will complete and call onPaymentSuccess
   }
 
   const sentinelRef = useRef<HTMLDivElement | null>(null)
@@ -187,6 +211,15 @@ export default function MainPage() {
     if (!audio) return
     const license = audio.license_models.find((l) => l.id === payload.licenseModelId)
     if (!license) return
+
+    // Prevent adding the same product + license multiple times
+    const exists = cart.some((c) => c.audioId === payload.audioId && c.licenseModelId === payload.licenseModelId)
+    if (exists) {
+      setCartOpen(true)
+      setToast("Dieses Produkt ist bereits im Warenkorb.")
+      window.setTimeout(() => setToast(null), 2500)
+      return
+    }
 
     setCart((prev) => [
       ...prev,
@@ -263,6 +296,23 @@ export default function MainPage() {
           onCheckout={() => {
             void checkout()
           }}
+          onOrderCreated={handleOrderCreated}
+          onRemoveItem={(idx) => {
+            setCart((prev) => {
+              const next = prev.filter((_, i) => i !== idx)
+              if (next.length === 0) {
+                setCartOpen(false)
+                setCheckoutStatus("idle")
+                setCheckoutTotalCents(undefined)
+                setOrderId(undefined)
+                setPaymentMethod(undefined)
+                setBillingName(undefined)
+              }
+              return next
+            })
+          }}
+          paymentMethod={paymentMethod}
+          billingName={billingName}
           onPaymentSuccess={() => {
             setCart([]) // Clear cart after successful payment
             setCartOpen(false)
@@ -277,6 +327,11 @@ export default function MainPage() {
       ) : null}
 
       <StickyAudioPlayer track={selected} />
+      {toast ? (
+        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.85)', color: '#fff', padding: '8px 14px', borderRadius: 8, zIndex: 9999 }} role="status">
+          {toast}
+        </div>
+      ) : null}
     </div>
   )
 }

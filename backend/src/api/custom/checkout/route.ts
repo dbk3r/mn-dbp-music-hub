@@ -1,18 +1,26 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { AppDataSource } from "../../../datasource/data-source"
+import jwt from "jsonwebtoken"
+import crypto from "crypto"
+import { User } from "../../../models/user"
+import { In } from "typeorm"
 import { AudioFile } from "../../../models/audio-file"
 import { LicenseModel } from "../../../models/license-model"
 import { Order, OrderStatus } from "../../../models/order"
 import { setStoreCors } from "../audio/_cors"
 
-async function readJsonBody(req: MedusaRequest): Promise<any> {
+async function readJsonBody(req: MedusaRequest): Promise<{ raw: string; parsed: any } | null> {
   const chunks: Buffer[] = []
   for await (const chunk of req as any) {
     chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
   }
   const raw = Buffer.concat(chunks).toString("utf8")
   if (!raw.trim()) return null
-  return JSON.parse(raw)
+  try {
+    return { raw, parsed: JSON.parse(raw) }
+  } catch (err) {
+    return { raw, parsed: null }
+  }
 }
 
 export async function OPTIONS(req: MedusaRequest, res: MedusaResponse) {
@@ -30,11 +38,118 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   }
 
   const token = authHeader.substring(7)
-  // TODO: Validate JWT token and extract customer ID
-  // For now, use a dummy customer ID
-  const customerId = "cus_authenticated" // Should be from JWT
+  const JWT_SECRET = process.env.JWT_SECRET || "supersecret"
 
-  const body = await readJsonBody(req).catch(() => null)
+  // Try to decode JWT and map to a customer. There is no direct user->customer mapping
+  // in the DB, so use the seeded customer with id 1 for authenticated store users.
+  let customerId = "1"
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as any
+    // If a customer id claim is present and looks numeric, prefer that
+    if (decoded && decoded.customerId != null) {
+      const maybe = String(decoded.customerId)
+      if (/^\d+$/.test(maybe)) customerId = maybe
+    }
+  } catch (err) {
+    // invalid token -> unauthorized
+    return res.status(401).json({ message: "invalid token" })
+  }
+
+  // Try to map authenticated user -> customer by email.
+  // 1) decode userId from token (most tokens include `userId`)
+  // 2) look up User in `user` table, get email
+  // 3) try to find a customer with that email, create one if missing
+  try {
+    const decodedAny = jwt.decode(token) as any
+    const userIdFromToken = decodedAny?.userId ?? null
+    if (userIdFromToken) {
+      if (!AppDataSource.isInitialized) await AppDataSource.initialize()
+      const userRepo = AppDataSource.getRepository(User)
+      const user = await userRepo.findOne({ where: { id: userIdFromToken } as any })
+      if (user && (user as any).email) {
+        const email = (user as any).email
+        try {
+          // try to find existing customer by email
+          const rows: any[] = await AppDataSource.query(`SELECT id FROM customer WHERE email = $1 LIMIT 1`, [email])
+          if (rows && rows.length > 0 && rows[0].id != null) {
+            customerId = String(rows[0].id)
+          } else {
+            // create customer with email and optional names
+            const name = (user as any).displayName || ""
+            const [first = "", last = ""] = name.split(" ")
+            // generate an id in the app to avoid DB type/sequence issues
+            let newId: string
+            try {
+              newId = (crypto && (crypto as any).randomUUID) ? (crypto as any).randomUUID() : `cust_${Date.now()}`
+            } catch (e) {
+              newId = `cust_${Date.now()}`
+            }
+
+            const insertRes: any = await AppDataSource.query(
+              `INSERT INTO customer (id, email, first_name, last_name)
+               VALUES ($1, $2, $3, $4)
+               RETURNING id`,
+              [newId, email, first, last]
+            )
+            if (insertRes && insertRes[0] && insertRes[0].id != null) {
+              customerId = String(insertRes[0].id)
+            } else {
+              customerId = newId
+            }
+          }
+        } catch (err) {
+          // If queries fail (schema differences), keep using fallback customerId
+          // eslint-disable-next-line no-console
+          console.log("[checkout] customer lookup/create failed:", String(err))
+        }
+      }
+    }
+  } catch (err) {
+    // best-effort mapping; ignore errors and continue with fallback
+    // eslint-disable-next-line no-console
+    console.log("[checkout] user->customer mapping error:", String(err))
+  }
+
+  // Debug: log headers for incoming request
+  // eslint-disable-next-line no-console
+  console.log("[checkout] method:", req.method, "url:", req.url)
+  // eslint-disable-next-line no-console
+  console.log("[checkout] headers:", JSON.stringify(req.headers || {}))
+  // eslint-disable-next-line no-console
+  console.log("[checkout] readableEnded:", (req as any).readableEnded, "readable:", (req as any).readable)
+
+  const bodyRes = await readJsonBody(req).catch((e) => {
+    // eslint-disable-next-line no-console
+    console.log("[checkout] readJsonBody threw:", String(e))
+    return null
+  })
+
+  // Debug: log what readJsonBody returned
+  // eslint-disable-next-line no-console
+  console.log("[checkout] readJsonBody result:", JSON.stringify(bodyRes))
+
+  // Prefer framework-parsed body if present (some middleware may have consumed the stream)
+  let body: any = null
+  try {
+    if (req && (req as any).body && Object.keys((req as any).body).length > 0) {
+      body = (req as any).body
+      // eslint-disable-next-line no-console
+      console.log("[checkout] using req.body from framework:", JSON.stringify(body))
+    } else {
+      body = bodyRes ? (bodyRes as any).parsed ?? null : null
+      if (bodyRes && (bodyRes as any).raw) {
+        // eslint-disable-next-line no-console
+        console.log("[checkout] raw body:", (bodyRes as any).raw)
+      } else {
+        // eslint-disable-next-line no-console
+        console.log("[checkout] no raw body received from stream and no req.body present")
+      }
+    }
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.log("[checkout] error while reading req.body:", String(err))
+  }
+
   const items = Array.isArray(body?.items) ? body.items : []
 
   if (!items.length) {
@@ -65,8 +180,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const licenseIds = Array.from(new Set(normalized.map((i) => i.licenseModelId)))
 
   const [audios, licenses] = await Promise.all([
-    audioRepo.findBy({ id: audioIds as any } as any),
-    licenseRepo.findBy({ id: licenseIds as any } as any),
+    audioRepo.findBy({ id: In(audioIds) } as any),
+    licenseRepo.findBy({ id: In(licenseIds) } as any),
   ])
 
   const audioById = new Map(audios.map((a) => [a.id, a]))

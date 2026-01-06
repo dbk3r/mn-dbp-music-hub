@@ -44,8 +44,7 @@ services:
       - redis
     volumes:
       - ./backend:/app
-      - backend_uploads:/app/uploads
-      - /app/uploads
+      - ./uploads:/app/uploads
 
     ports:
       - "9000:9000"
@@ -101,4 +100,4 @@ services:
 volumes:
   pg_data:
   redis_data:
-  backend_uploads:
+  # backend_uploads: (removed — uploads persisted to ./uploads on host)

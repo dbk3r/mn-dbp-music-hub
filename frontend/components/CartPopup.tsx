@@ -1,7 +1,72 @@
 "use client"
 import React, { useState, useEffect } from "react"
-import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js"
+import { Elements, CardNumberElement, CardExpiryElement, CardCvcElement, useStripe, useElements } from "@stripe/react-stripe-js"
 import { getStripePromise } from "../lib/stripe"
+import CheckoutForm from "./CheckoutForm"
+
+function PayPalRenderer({ amountCents, onSuccess }: { amountCents: number, onSuccess: () => void }) {
+  useEffect(() => {
+    let mounted = true
+    const render = async () => {
+      if (!mounted) return
+      // wait for paypal sdk
+      const waitForPaypal = () => new Promise<void>((resolve) => {
+        const check = () => {
+          // @ts-ignore
+          if ((window as any).paypal) return resolve()
+          setTimeout(check, 200)
+        }
+        check()
+      })
+
+      try {
+        await waitForPaypal()
+        // @ts-ignore
+        const paypal = (window as any).paypal
+        if (!paypal) return
+        const container = document.getElementById("paypal-buttons")
+        if (!container) return
+
+        // Clear previous
+        container.innerHTML = ""
+
+        paypal.Buttons({
+          createOrder: async function () {
+            const r = await fetch("/api/paypal/create", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ amount: amountCents }),
+            })
+            const json = await r.json()
+            if (!r.ok) throw new Error(JSON.stringify(json))
+            return json.id
+          },
+          onApprove: async function (data: any) {
+            const r = await fetch("/api/paypal/capture", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ paypalOrderId: data.orderID }),
+            })
+            const json = await r.json()
+            if (!r.ok) throw new Error(JSON.stringify(json))
+            onSuccess()
+          },
+          onError: function (err: any) {
+            console.error("PayPal error", err)
+            alert("PayPal-Fehler: " + (err?.message || String(err)))
+          }
+        }).render(container)
+      } catch (err) {
+        console.error("PayPal render failed", err)
+      }
+    }
+
+    render()
+    return () => { mounted = false }
+  }, [amountCents, onSuccess])
+
+  return null
+}
 
 type CartItem = {
   audioId?: number
@@ -19,6 +84,10 @@ type CartPopupProps = {
   checkoutStatus?: "idle" | "loading" | "success" | "error"
   checkoutTotalCents?: number
   orderId?: number
+  onOrderCreated?: (payload: { order_id?: number; total_price_cents?: number; payment_method?: string }) => void
+  onRemoveItem?: (index: number) => void
+  paymentMethod?: string | undefined
+  billingName?: string | undefined
 }
 
 export default function CartPopup({
@@ -29,6 +98,10 @@ export default function CartPopup({
   checkoutStatus = "idle",
   checkoutTotalCents,
   orderId,
+  onOrderCreated,
+  onRemoveItem,
+  paymentMethod,
+  billingName,
 }: CartPopupProps) {
   function fmtPrice(cents: number | undefined) {
     if (typeof cents !== "number" || !Number.isFinite(cents)) return "–"
@@ -50,10 +123,21 @@ export default function CartPopup({
   const isSuccess = checkoutStatus === "success"
   const isError = checkoutStatus === "error"
 
-function PaymentForm({ orderId, checkoutTotalCents, onSuccess, onClose }: { orderId: number, checkoutTotalCents?: number, onSuccess: () => void, onClose: () => void }) {
+function PaymentForm({ orderId, checkoutTotalCents, onSuccess, onClose, billingName }: { orderId: number, checkoutTotalCents?: number, onSuccess: () => void, onClose: () => void, billingName?: string | undefined }) {
   const stripe = useStripe()
   const elements = useElements()
   const [loading, setLoading] = useState(false)
+  const [cardHolder, setCardHolder] = useState<string>(billingName || "")
+
+  React.useEffect(() => {
+    setCardHolder(billingName || "")
+  }, [billingName])
+  const [numberError, setNumberError] = useState<string | null>(null)
+  const [expiryError, setExpiryError] = useState<string | null>(null)
+  const [cvcError, setCvcError] = useState<string | null>(null)
+  const [numberFocused, setNumberFocused] = useState(false)
+  const [expiryFocused, setExpiryFocused] = useState(false)
+  const [cvcFocused, setCvcFocused] = useState(false)
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -63,8 +147,8 @@ function PaymentForm({ orderId, checkoutTotalCents, onSuccess, onClose }: { orde
     setLoading(true)
 
     try {
-      const cardElement = elements.getElement(CardElement)
-      if (!cardElement) throw new Error("Card element not found")
+      const cardNumberElement = elements.getElement(CardNumberElement)
+      if (!cardNumberElement) throw new Error("CardNumber element not found")
 
       // Get payment intent
       const response = await fetch("/custom/checkout/payment", {
@@ -83,9 +167,9 @@ function PaymentForm({ orderId, checkoutTotalCents, onSuccess, onClose }: { orde
       // Confirm payment
       const result = await stripe.confirmCardPayment(client_secret, {
         payment_method: {
-          card: cardElement,
+          card: cardNumberElement,
           billing_details: {
-            name: "Test Customer", // TODO: Get from user profile
+            name: cardHolder || billingName || "",
           },
         },
       })
@@ -106,32 +190,56 @@ function PaymentForm({ orderId, checkoutTotalCents, onSuccess, onClose }: { orde
 
   return (
     <form onSubmit={handleSubmit} style={{ marginTop: 20 }}>
-      <div style={{ marginBottom: 16 }}>
-        <label style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>
-          Kreditkarte
-        </label>
-        <div style={{
-          padding: 12,
-          border: "1px solid #ccc",
-          borderRadius: 4,
-          background: "#fff"
-        }}>
-          <CardElement options={{
-            style: {
-              base: {
-                fontSize: '16px',
-                color: '#424770',
-                '::placeholder': {
-                  color: '#aab7c4',
-                },
-              },
-            },
-          }} />
+      <div style={{ marginBottom: 12 }}>
+        <label style={{ display: 'block', fontSize: 12, marginBottom: 6 }}>Karteninhaber/in</label>
+        <input value={cardHolder} onChange={(e) => setCardHolder(e.target.value)} placeholder="Name auf Karte" style={{ width: '100%', padding: 10, borderRadius: 6, border: '1px solid #ccc' }} />
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div>
+          <label style={{ display: 'block', fontSize: 12, marginBottom: 6 }}>Kartennummer</label>
+          <div id="card-number-wrapper" style={{ padding: 10, border: numberError ? '1px solid #b00020' : (numberFocused ? '1px solid #2563eb' : '1px solid #ccc'), borderRadius: 6, background: '#fff' }} aria-invalid={!!numberError} aria-describedby={numberError ? 'card-number-error' : undefined}>
+            <CardNumberElement
+              options={{ style: { base: { fontSize: '16px', color: '#424770', '::placeholder': { color: '#aab7c4' } }, invalid: { color: '#9e2146' } } }}
+              onChange={(e: any) => setNumberError(e.error ? e.error.message : null)}
+              onFocus={() => setNumberFocused(true)}
+              onBlur={() => setNumberFocused(false)}
+            />
+          </div>
+          {numberError ? <div id="card-number-error" style={{ color: '#b00020', fontSize: 13, marginTop: 6 }}>{numberError}</div> : null}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div>
+            <label style={{ display: 'block', fontSize: 12, marginBottom: 6 }}>Gültig bis</label>
+            <div id="card-expiry-wrapper" style={{ padding: 10, border: expiryError ? '1px solid #b00020' : (expiryFocused ? '1px solid #2563eb' : '1px solid #ccc'), borderRadius: 6, background: '#fff' }} aria-invalid={!!expiryError} aria-describedby={expiryError ? 'card-expiry-error' : undefined}>
+              <CardExpiryElement
+                options={{ style: { base: { fontSize: '16px', color: '#424770' }, invalid: { color: '#9e2146' } } }}
+                onChange={(e: any) => setExpiryError(e.error ? e.error.message : null)}
+                onFocus={() => setExpiryFocused(true)}
+                onBlur={() => setExpiryFocused(false)}
+              />
+            </div>
+            {expiryError ? <div id="card-expiry-error" style={{ color: '#b00020', fontSize: 13, marginTop: 6 }}>{expiryError}</div> : null}
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 12, marginBottom: 6 }}>Prüfcode (CVC)</label>
+            <div id="card-cvc-wrapper" style={{ padding: 10, border: cvcError ? '1px solid #b00020' : (cvcFocused ? '1px solid #2563eb' : '1px solid #ccc'), borderRadius: 6, background: '#fff' }} aria-invalid={!!cvcError} aria-describedby={cvcError ? 'card-cvc-error' : undefined}>
+              <CardCvcElement
+                options={{ style: { base: { fontSize: '16px', color: '#424770' }, invalid: { color: '#9e2146' } } }}
+                onChange={(e: any) => setCvcError(e.error ? e.error.message : null)}
+                onFocus={() => setCvcFocused(true)}
+                onBlur={() => setCvcFocused(false)}
+              />
+            </div>
+            {cvcError ? <div id="card-cvc-error" style={{ color: '#b00020', fontSize: 13, marginTop: 6 }}>{cvcError}</div> : null}
+          </div>
         </div>
       </div>
-      <div style={{ display: "flex", gap: 10 }}>
-        <button type="submit" disabled={!stripe || loading}>
-          {loading ? "Verarbeite..." : `Bezahlen ${((checkoutTotalCents || 0) / 100).toFixed(2)}€`}
+
+      <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+        <button type="submit" disabled={!stripe || loading || !cardHolder.trim()}>
+          {loading ? 'Verarbeite...' : `Bezahlen ${((checkoutTotalCents || 0) / 100).toFixed(2)}€`}
         </button>
         <button type="button" onClick={onClose} disabled={loading}>
           Abbrechen
@@ -172,9 +280,21 @@ function PaymentForm({ orderId, checkoutTotalCents, onSuccess, onClose }: { orde
                     <div className="cart-item-licdesc">{i.licenseModelDescription}</div>
                   ) : null}
                 </div>
-                <div className="cart-line-price">
-                  <div>Einzelpreis: {fmtPrice(i.priceCents)}€</div>
-                  <div style={{color: 'var(--text-muted)', fontSize: 13}}>Steuer ({Math.round(TAX_RATE*100)}%): {fmtPrice(centsTax(i.priceCents))}€</div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+                  <div className="cart-line-price">
+                    <div>Einzelpreis: {fmtPrice(i.priceCents)}€</div>
+                    <div style={{color: 'var(--text-muted)', fontSize: 13}}>Steuer ({Math.round(TAX_RATE*100)}%): {fmtPrice(centsTax(i.priceCents))}€</div>
+                  </div>
+                  <button
+                    onClick={() => { if (typeof onRemoveItem === 'function') onRemoveItem(k) }}
+                    title="Aus dem Warenkorb entfernen"
+                    aria-label="Aus dem Warenkorb entfernen"
+                    style={{ background: 'transparent', border: 'none', color: '#b00020', cursor: 'pointer', fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6, padding: 6 }}
+                  >
+                    <span style={{ display: 'inline-flex', width: 28, height: 28, borderRadius: 6, alignItems: 'center', justifyContent: 'center', fontSize: 16 }} aria-hidden>
+                      🗑️
+                    </span>
+                  </button>
                 </div>
               </div>
             ))}
@@ -187,7 +307,7 @@ function PaymentForm({ orderId, checkoutTotalCents, onSuccess, onClose }: { orde
           </div>
         )}
 
-        {orderId && (
+        {orderId && paymentMethod === "stripe" && (
           <Elements stripe={getStripePromise()}>
             <PaymentForm
               orderId={orderId}
@@ -199,14 +319,32 @@ function PaymentForm({ orderId, checkoutTotalCents, onSuccess, onClose }: { orde
                 // Could trigger a success callback or redirect
               }}
               onClose={onClose}
+              billingName={billingName}
             />
           </Elements>
         )}
 
+        {orderId && paymentMethod === "paypal" && (
+          <div style={{ marginTop: 12 }}>
+            <div id="paypal-buttons" />
+            <PayPalRenderer amountCents={checkoutTotalCents || 0} onSuccess={() => { onPaymentSuccess(); onClose() }} />
+          </div>
+        )}
+
         {!orderId && (
           <div style={{marginTop:20}}>
-            <button disabled={!cart.length || isLoading} onClick={onCheckout}>Zur Kasse</button>
-            <button onClick={onClose} style={{marginLeft:10}} disabled={isLoading}>Schließen</button>
+            <CheckoutForm
+              cart={cart}
+              cartTotalCents={grandTotal}
+              onOrderCreated={(p) => {
+                // propagate to parent if provided
+                if (typeof onOrderCreated === "function") onOrderCreated(p)
+              }}
+              onError={(e) => console.error("CheckoutForm error", e)}
+            />
+            <div style={{ marginTop: 8 }}>
+              <button onClick={onClose} style={{marginLeft:10}} disabled={isLoading}>Schließen</button>
+            </div>
           </div>
         )}
       </div>

@@ -1,0 +1,7 @@
+{
+  "paypal_mode": "sandbox",
+  "paypal_prod_client_id": "",
+  "paypal_prod_secret": "",
+  "paypal_sandbox_client_id": "",
+  "paypal_sandbox_secret": ""
+}
