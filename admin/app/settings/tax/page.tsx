@@ -26,6 +26,7 @@ export default function TaxSettingsPage() {
     try {
       const token = typeof window !== "undefined" ? localStorage.getItem("admin_auth_token") : null
       const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
+      console.log("tax page: calling adminApiUrl:", adminApiUrl("/shop-settings"), "token present:", !!token)
       const r = await fetch(adminApiUrl("/shop-settings"), { headers })
       if (!r.ok) throw new Error("Failed")
       const data = await r.json()

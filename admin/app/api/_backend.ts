@@ -14,12 +14,15 @@ export function backendUrl(path: string): string {
 
 export async function getBackendToken(): Promise<string | null> {
   // Prefer an explicit service token from env
-  if (process.env.BACKEND_SERVICE_TOKEN) return process.env.BACKEND_SERVICE_TOKEN
-  if (process.env.ADMIN_AUTH_TOKEN) return process.env.ADMIN_AUTH_TOKEN
+  if (process.env.BACKEND_SERVICE_TOKEN) {
+    console.log('[admin-api] using BACKEND_SERVICE_TOKEN from env')
+    return process.env.BACKEND_SERVICE_TOKEN
+  }
 
   // If a service key is available, generate a short-lived HS256 JWT for server-to-server auth
   const serviceKey = process.env.ADMIN_SERVICE_KEY || process.env.BACKEND_SERVICE_KEY
   if (serviceKey) {
+    console.log('[admin-api] generating service JWT using BACKEND_SERVICE_KEY')
     try {
       const now = Math.floor(Date.now() / 1000)
       const header = { alg: "HS256", typ: "JWT" }
@@ -43,6 +46,12 @@ export async function getBackendToken(): Promise<string | null> {
     } catch (err) {
       console.error("getBackendToken: failed to generate service jwt", err)
     }
+  }
+
+  // If service key not available, prefer an explicit admin auth token from env
+  if (process.env.ADMIN_AUTH_TOKEN) {
+    console.log('[admin-api] using ADMIN_AUTH_TOKEN from env')
+    return process.env.ADMIN_AUTH_TOKEN
   }
 
   // Otherwise, try to login with provided admin credentials (only for server-side use)

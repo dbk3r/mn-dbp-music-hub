@@ -19,6 +19,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
   const bearer = authHeader.slice(7)
   const serviceKey = process.env.BACKEND_SERVICE_KEY
+  console.log("settings auth: received bearer (start):", bearer ? bearer.slice(0, 32) + "..." : "<none>")
+  console.log("settings auth: serviceKey present:", !!serviceKey)
 
   // 1) Prefer service JWT signed with BACKEND_SERVICE_KEY (HS256)
   let accepted = false
@@ -27,6 +29,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       const decodedSvc = jwt.verify(bearer, serviceKey, { algorithms: ["HS256"] }) as any
       if (decodedSvc && decodedSvc.service === "admin") accepted = true
     } catch (e) {
+      console.error("settings auth: service JWT verify failed:", e && (e as any).message ? (e as any).message : e)
       // ignore and try fallback
     }
   }
@@ -38,6 +41,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       if (decoded && decoded.mfaPending) return res.status(401).json({ message: "mfa verification required" })
       accepted = true
     } catch (err) {
+      console.error("settings auth: user JWT verify failed:", err && (err as any).message ? (err as any).message : err)
       return res.status(401).json({ message: "invalid token" })
     }
   }

@@ -7,6 +7,7 @@ export async function GET() {
   try {
     const token = await getBackendToken()
     if (!token) return NextResponse.json({ message: "Backend nicht verfügbar" }, { status: 500 })
+    console.log("admin proxy: sending backend token start:", token ? token.slice(0, 32) + "..." : "<none>")
 
     const r = await fetch(`${backendUrl}/custom/admin/settings`, {
       headers: { Authorization: `Bearer ${token}` },

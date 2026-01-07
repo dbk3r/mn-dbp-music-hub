@@ -26,6 +26,34 @@ export async function requireAuth(
   }
 
   const token = auth.slice(7)
+  // Allow short-lived service JWTs signed with BACKEND_SERVICE_KEY (server-to-server)
+  const serviceKey = process.env.BACKEND_SERVICE_KEY
+  if (serviceKey) {
+    try {
+      const decodedSvc = jwt.verify(token, serviceKey, { algorithms: ["HS256"] }) as any
+      if (decodedSvc && decodedSvc.service === "admin") {
+        console.log("service jwt accepted - treating as admin service token")
+        // Create a minimal synthetic admin user so downstream permission checks pass
+        req.user = {
+          id: "service-admin",
+          email: "service@internal",
+          isActive: true,
+          roles: [
+            {
+              id: 0,
+              name: "admin",
+              permissions: [],
+            },
+          ],
+        } as any
+        if (next) next()
+        return true
+      }
+    } catch (e) {
+      // Not a valid service token; fallthrough to normal user verification
+      console.log("service jwt verify failed (fallthrough):", e && (e as any).message ? (e as any).message : e)
+    }
+  }
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as any
