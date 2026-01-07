@@ -44,9 +44,13 @@ export default function AccountPage() {
           const data = await r.json()
           if (!mounted) return
           console.log('[account] Orders data:', JSON.stringify(data, null, 2))
-          if (Array.isArray(data)) setOrders(data)
-          else if (data && data.orders) setOrders(data.orders)
-          else setOrders([])
+          let allOrders: Order[] = []
+          if (Array.isArray(data)) allOrders = data
+          else if (data && data.orders) allOrders = data.orders
+          
+          // Filter: Nur completed Orders anzeigen
+          const completedOrders = allOrders.filter((o: any) => o.status === 'completed')
+          setOrders(completedOrders)
         } else {
           const text = await r.text()
           if (!mounted) return

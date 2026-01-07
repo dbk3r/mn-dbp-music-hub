@@ -295,13 +295,16 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const yyyy = String(now.getFullYear())
   const orderId = `${dd}${mm}${yyyy}_${seqVal}`
 
+  // Orders mit 0€ bekommen sofort status "completed"
+  const orderStatus = totalPriceCents === 0 ? OrderStatus.COMPLETED : OrderStatus.PENDING
+
   // Insert order via raw SQL to include generated order_id (avoid schema migration step)
   try {
     const insertRes: any = await AppDataSource.query(
       `INSERT INTO orders ("customerId", status, "totalPriceCents", "currencyCode", items, "createdAt", "updatedAt", order_id)
        VALUES ($1, $2, $3, $4, $5, now(), now(), $6)
        RETURNING id, order_id`,
-      [customerId, OrderStatus.PENDING, totalPriceCents, 'EUR', JSON.stringify(detailed), orderId]
+      [customerId, orderStatus, totalPriceCents, 'EUR', JSON.stringify(detailed), orderId]
     )
     const created = insertRes && insertRes[0] ? insertRes[0] : null
     return res.json({
@@ -309,13 +312,13 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       items: detailed,
       total_price_cents: totalPriceCents,
       currency_code: 'eur',
-      status: 'pending',
+      status: totalPriceCents === 0 ? 'completed' : 'pending',
     })
   } catch (e) {
     console.log('[checkout] insert failed, falling back to TypeORM save', String(e))
     const order = orderRepo.create({
       customerId,
-      status: OrderStatus.PENDING,
+      status: orderStatus,
       totalPriceCents,
       currencyCode: "EUR",
       items: detailed,
@@ -326,7 +329,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       items: detailed,
       total_price_cents: totalPriceCents,
       currency_code: "eur",
-      status: "pending",
+      status: totalPriceCents === 0 ? "completed" : "pending",
     })
   }
 }

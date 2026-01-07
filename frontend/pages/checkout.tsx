@@ -88,6 +88,8 @@ export default function CheckoutPage() {
   const [cart, setCart] = useState<CartItem[]>([])
   const [orderId, setOrderId] = useState<number | undefined>(undefined)
   const [totalCents, setTotalCents] = useState<number | undefined>(undefined)
+  const [paymentMethodsAvailable, setPaymentMethodsAvailable] = useState(false)
+  const [checkingPayment, setCheckingPayment] = useState(true)
   const TAX_RATE = 0.19
 
   useEffect(() => {
@@ -100,6 +102,22 @@ export default function CheckoutPage() {
     } catch (e) {
       // ignore
     }
+  }, [])
+
+  useEffect(() => {
+    // Check if payment methods are available
+    async function checkPaymentMethods() {
+      try {
+        const stripePromise = getStripePromise()
+        const stripe = await stripePromise
+        setPaymentMethodsAvailable(!!stripe)
+      } catch (e) {
+        setPaymentMethodsAvailable(false)
+      } finally {
+        setCheckingPayment(false)
+      }
+    }
+    checkPaymentMethods()
   }, [])
 
   const subtotal = cart.reduce((s, it) => s + (it.priceCents || 0), 0)
@@ -161,7 +179,18 @@ export default function CheckoutPage() {
 
           {!orderId ? (
             <div style={{ marginTop: 16 }}>
-              <button onClick={createOrder}>Bestellung erstellen und bezahlen</button>
+              {!paymentMethodsAvailable && !checkingPayment && (
+                <div style={{ padding: 12, background: '#fff3cd', border: '1px solid #ffc107', borderRadius: 4, marginBottom: 12 }}>
+                  ⚠️ Keine Zahlungsmethode konfiguriert. Bitte kontaktieren Sie den Administrator.
+                </div>
+              )}
+              <button 
+                onClick={createOrder}
+                disabled={!paymentMethodsAvailable || checkingPayment}
+                style={{ opacity: (!paymentMethodsAvailable || checkingPayment) ? 0.5 : 1 }}
+              >
+                {checkingPayment ? 'Prüfe Zahlungsmethoden...' : 'Bestellung erstellen und bezahlen'}
+              </button>
             </div>
           ) : (
             <div style={{ marginTop: 16 }}>

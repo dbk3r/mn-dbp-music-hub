@@ -18,7 +18,7 @@ type FormState = {
   name: string;
   icon: string;
   description: string;
-  priceCents: string;
+  priceEuros: string;
   legalDescription: string;
 };
 
@@ -27,7 +27,7 @@ const emptyForm: FormState = {
   name: "",
   icon: "",
   description: "",
-  priceCents: "0",
+  priceEuros: "0",
   legalDescription: "",
 };
 
@@ -74,7 +74,7 @@ export default function LicenseModelCrud() {
       name: item.name ?? "",
       icon: item.icon ?? "",
       description: item.description ?? "",
-      priceCents: String(item.priceCents ?? 0),
+      priceEuros: ((item.priceCents ?? 0) / 100).toFixed(2),
       legalDescription: item.legalDescription ?? "",
     });
     // focus first input so edit is visible
@@ -100,7 +100,7 @@ export default function LicenseModelCrud() {
       icon: form.icon.trim() || null,
       description: form.description.trim() || null,
       legalDescription: form.legalDescription.trim() || null,
-      priceCents: Number(form.priceCents) || 0,
+      priceCents: Math.round((Number(form.priceEuros) || 0) * 100),
     };
 
     setIsBusy(true);
@@ -204,13 +204,15 @@ export default function LicenseModelCrud() {
             />
           </div>
           <div className="space-y-1">
-            <div className="text-sm">Preis (Cent)</div>
+            <div className="text-sm">Preis (€)</div>
             <input
               type="number"
               min={0}
+              step="0.01"
               className="h-10 w-full rounded border border-foreground/15 bg-background px-3 text-sm outline-none focus:border-foreground/30"
-              value={form.priceCents}
-              onChange={(e) => setField("priceCents", e.target.value)}
+              value={form.priceEuros}
+              onChange={(e) => setField("priceEuros", e.target.value)}
+              placeholder="z.B. 9.99"
             />
           </div>
           <div className="space-y-1 sm:col-span-2">
@@ -259,7 +261,7 @@ export default function LicenseModelCrud() {
               <th className="px-3 py-2 font-medium">ID</th>
               <th className="px-3 py-2 font-medium">Name</th>
               <th className="px-3 py-2 font-medium">Icon</th>
-              <th className="px-3 py-2 font-medium">Preis (Cent)</th>
+              <th className="px-3 py-2 font-medium">Preis (€)</th>
               <th className="px-3 py-2" />
             </tr>
           </thead>
@@ -276,7 +278,7 @@ export default function LicenseModelCrud() {
                   <td className="px-3 py-2">{item.id}</td>
                   <td className="px-3 py-2">{item.name}</td>
                   <td className="px-3 py-2">{item.icon ?? ""}</td>
-                  <td className="px-3 py-2">{item.priceCents ?? 0}</td>
+                  <td className="px-3 py-2">{((item.priceCents ?? 0) / 100).toFixed(2)} €</td>
                   <td className="px-3 py-2 text-right">
                     <button
                       className="rounded px-3 py-1 text-sm hover:bg-foreground/5 disabled:opacity-60"
