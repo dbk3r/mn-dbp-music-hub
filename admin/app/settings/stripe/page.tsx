@@ -2,17 +2,17 @@
 import { useState, useEffect } from "react"
 import { adminApiUrl } from "../../_lib/api"
 
-type ShopSettings = {
-  shop_tax_rate: string
-  shop_display_tax_breakdown: string
-  shop_show_prices_with_tax: string
+type StripeSettings = {
+  stripe_secret_key: string
+  stripe_publishable_key: string
+  stripe_webhook_secret: string
 }
 
 export default function StripeSettingsPage() {
-  const [settings, setSettings] = useState<ShopSettings>({
-    shop_tax_rate: "0.19",
-    shop_display_tax_breakdown: "true",
-    shop_show_prices_with_tax: "false",
+  const [settings, setSettings] = useState<StripeSettings>({
+    stripe_secret_key: "",
+    stripe_publishable_key: "",
+    stripe_webhook_secret: "",
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -26,13 +26,13 @@ export default function StripeSettingsPage() {
     try {
       const token = typeof window !== "undefined" ? localStorage.getItem("admin_auth_token") : null
       const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
-      const r = await fetch(adminApiUrl("/shop-settings"), { headers })
+      const r = await fetch(adminApiUrl("/settings"), { headers })
       if (!r.ok) throw new Error("Failed")
       const data = await r.json()
       setSettings({
-        shop_tax_rate: data.shop_tax_rate ?? "0.19",
-        shop_display_tax_breakdown: String(data.shop_display_tax_breakdown ?? "true"),
-        shop_show_prices_with_tax: String(data.shop_show_prices_with_tax ?? "false"),
+        stripe_secret_key: data.stripe_secret_key ?? "",
+        stripe_publishable_key: data.stripe_publishable_key ?? "",
+        stripe_webhook_secret: data.stripe_webhook_secret ?? "",
       })
     } catch (err) {
       setMessage("Fehler beim Laden")
@@ -48,7 +48,7 @@ export default function StripeSettingsPage() {
       const token = typeof window !== "undefined" ? localStorage.getItem("admin_auth_token") : null
       const headers: Record<string, string> = { "Content-Type": "application/json" }
       if (token) headers.Authorization = `Bearer ${token}`
-      const r = await fetch(adminApiUrl("/shop-settings"), {
+      const r = await fetch(adminApiUrl("/settings"), {
         method: "POST",
         headers,
         body: JSON.stringify(settings),
@@ -62,38 +62,70 @@ export default function StripeSettingsPage() {
     }
   }
 
-  if (loading) return <div style={{ padding: 30 }}>Lädt...</div>
+  if (loading) return <div className="p-6">Lädt...</div>
 
   return (
-    <div style={{ padding: 30, maxWidth: 800 }}>
-      <h1>Stripe-Verwaltung</h1>
-      <p style={{ color: "#666", marginBottom: 20 }}>Verwalten Sie Stripe-/Shop-spezifische Einstellungen wie Steuersatz und Anzeigeoptionen.</p>
+    <div className="space-y-4 p-6" style={{ maxWidth: 800 }}>
+      <div>
+        <h1 className="text-2xl font-semibold">Stripe-Einstellungen</h1>
+        <p className="text-sm text-foreground/70">
+          API-Schlüssel und Webhook-Konfiguration für Stripe-Zahlungen.
+        </p>
+      </div>
 
-      <div style={{ padding: 20, background: "#fafafa", borderRadius: 8 }}>
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>Steuersatz (dezimal, z.B. 0.19)</label>
-          <input type="text" value={settings.shop_tax_rate} onChange={(e) => setSettings({ ...settings, shop_tax_rate: e.target.value })} style={{ padding: 8, width: "100%" }} />
+      <div className="rounded border border-foreground/10 p-4">
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Secret Key</label>
+            <input 
+              type="password"
+              value={settings.stripe_secret_key} 
+              onChange={(e) => setSettings({ ...settings, stripe_secret_key: e.target.value })} 
+              className="h-10 w-full rounded border border-foreground/15 bg-background px-3 text-sm outline-none focus:border-foreground/30"
+              placeholder="sk_test_..."
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Publishable Key</label>
+            <input 
+              type="text"
+              value={settings.stripe_publishable_key} 
+              onChange={(e) => setSettings({ ...settings, stripe_publishable_key: e.target.value })} 
+              className="h-10 w-full rounded border border-foreground/15 bg-background px-3 text-sm outline-none focus:border-foreground/30"
+              placeholder="pk_test_..."
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Webhook Secret</label>
+            <input 
+              type="password"
+              value={settings.stripe_webhook_secret} 
+              onChange={(e) => setSettings({ ...settings, stripe_webhook_secret: e.target.value })} 
+              className="h-10 w-full rounded border border-foreground/15 bg-background px-3 text-sm outline-none focus:border-foreground/30"
+              placeholder="whsec_..."
+            />
+          </div>
+
+          {message && (
+            <div className={`rounded border p-3 text-sm ${
+              message.includes("Fehler") 
+                ? "border-red-500/50 bg-red-50 text-red-800" 
+                : "border-green-500/50 bg-green-50 text-green-800"
+            }`}>
+              {message}
+            </div>
+          )}
+
+          <button 
+            onClick={save} 
+            disabled={saving}
+            className="h-10 rounded bg-foreground px-4 text-sm font-medium text-background disabled:opacity-60"
+          >
+            {saving ? "Speichert..." : "Speichern"}
+          </button>
         </div>
-
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>Steueraufteilung anzeigen</label>
-          <select value={settings.shop_display_tax_breakdown} onChange={(e) => setSettings({ ...settings, shop_display_tax_breakdown: e.target.value })} style={{ padding: 8 }}>
-            <option value="true">Ja</option>
-            <option value="false">Nein</option>
-          </select>
-        </div>
-
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>Preise inklusive Steuer anzeigen</label>
-          <select value={settings.shop_show_prices_with_tax} onChange={(e) => setSettings({ ...settings, shop_show_prices_with_tax: e.target.value })} style={{ padding: 8 }}>
-            <option value="true">Ja</option>
-            <option value="false">Nein</option>
-          </select>
-        </div>
-
-        {message && <div style={{ marginBottom: 12, padding: 8, background: message.includes("Fehler") ? "#fee" : "#dfd", borderRadius: 6 }}>{message}</div>}
-
-        <button onClick={save} disabled={saving} style={{ padding: "10px 20px" }}>{saving ? "Speichert..." : "Speichern"}</button>
       </div>
     </div>
   )

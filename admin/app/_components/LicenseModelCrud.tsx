@@ -36,6 +36,7 @@ export default function LicenseModelCrud() {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isFormExpanded, setIsFormExpanded] = useState(false);
 
   const url = useMemo(() => adminApiUrl("/license-models"), []);
 
@@ -67,7 +68,7 @@ export default function LicenseModelCrud() {
   }
 
   function startEdit(item: LicenseModelItem) {
-    console.log("LicenseModelCrud.startEdit", item)
+    setIsFormExpanded(true);
     setForm({
       id: item.id,
       name: item.name ?? "",
@@ -91,7 +92,6 @@ export default function LicenseModelCrud() {
   const nameRef = useRef<HTMLInputElement | null>(null)
 
   async function save() {
-    console.log("LicenseModelCrud.save", form)
     const name = form.name.trim();
     if (!name) return;
 
@@ -153,10 +153,6 @@ export default function LicenseModelCrud() {
     refresh().catch((e) => setError(String(e)));
   }, [refresh]);
 
-  useEffect(() => {
-    console.log("LicenseModelCrud.formChanged", form)
-  }, [form])
-
   return (
     <div className="space-y-4">
       <div>
@@ -166,13 +162,20 @@ export default function LicenseModelCrud() {
         </p>
       </div>
 
-      <div className="rounded border border-foreground/10 p-4">
-        {form.id ? (
-          <div className="mb-3 rounded border border-amber-400 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            Bearbeite Lizenzmodell #{form.id}
+      <div className="rounded border border-foreground/10">
+        <div 
+          onClick={() => setIsFormExpanded(!isFormExpanded)}
+          className="flex items-center justify-between p-4 cursor-pointer hover:bg-foreground/5"
+        >
+          <div className="font-medium">
+            {form.id ? `Lizenzmodell #${form.id} bearbeiten` : 'Neues Lizenzmodell anlegen'}
           </div>
-        ) : null}
-        <div className="grid gap-3 sm:grid-cols-2">
+          <span style={{ transform: isFormExpanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 160ms ease' }}>▶</span>
+        </div>
+        
+        {isFormExpanded && (
+          <div className="border-t border-foreground/10 p-4">
+            <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1">
             <div className="text-sm">Name</div>
             <input
@@ -221,28 +224,26 @@ export default function LicenseModelCrud() {
           </div>
         </div>
 
-        <div className="mt-3 flex gap-2">
-          <button
-            className="h-10 rounded bg-foreground px-4 text-sm font-medium text-background disabled:opacity-60"
-            onClick={() => save()}
-            disabled={isBusy || !form.name.trim()}
-            type="button"
-          >
-            {form.id ? "Speichern" : "Anlegen"}
-          </button>
-          <button
-            className="h-10 rounded px-4 text-sm hover:bg-foreground/5 disabled:opacity-60"
-            onClick={() => reset()}
-            disabled={isBusy}
-            type="button"
-          >
-            Zurücksetzen
-          </button>
-        </div>
-        <div className="mt-2 text-xs text-foreground/60">
-          <div className="font-medium">DEBUG — current form state</div>
-          <pre className="whitespace-pre-wrap rounded border border-foreground/10 bg-background p-2 text-xs">{JSON.stringify(form, null, 2)}</pre>
-        </div>
+            <div className="mt-3 flex gap-2">
+              <button
+                className="h-10 rounded bg-foreground px-4 text-sm font-medium text-background disabled:opacity-60"
+                onClick={() => save()}
+                disabled={isBusy || !form.name.trim()}
+                type="button"
+              >
+                {form.id ? "Speichern" : "Anlegen"}
+              </button>
+              <button
+                className="h-10 rounded px-4 text-sm hover:bg-foreground/5 disabled:opacity-60"
+                onClick={() => reset()}
+                disabled={isBusy}
+                type="button"
+              >
+                Zurücksetzen
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {error ? (

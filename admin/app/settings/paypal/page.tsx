@@ -68,45 +68,97 @@ export default function PayPalSettingsPage() {
     }
   }
 
-  if (loading) return <div style={{ padding: 30 }}>Lädt...</div>
+  if (loading) return <div className="p-6">Lädt...</div>
 
   return (
-    <div style={{ padding: 30, maxWidth: 900 }}>
-      <h1>PayPal Einstellungen</h1>
-      <p style={{ color: "#666", marginBottom: 20 }}>Konfigurieren Sie PayPal-Zugangsdaten für Produktions- und Sandbox-Modus.</p>
+    <div className="space-y-4 p-6" style={{ maxWidth: 900 }}>
+      <div>
+        <h1 className="text-2xl font-semibold">PayPal Einstellungen</h1>
+        <p className="text-sm text-foreground/70">
+          Konfigurieren Sie PayPal-Zugangsdaten für Produktions- und Sandbox-Modus.
+        </p>
+      </div>
 
-      <div style={{ padding: 20, background: "#fafafa", borderRadius: 8 }}>
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>Aktiver Modus</label>
-          <select value={settings.paypal_mode} onChange={(e) => setSettings({ ...settings, paypal_mode: e.target.value })} style={{ padding: 8 }}>
-            <option value="sandbox">Sandbox</option>
-            <option value="production">Production</option>
-          </select>
-        </div>
+      <div className="rounded border border-foreground/10 p-4">
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Aktiver Modus</label>
+            <select 
+              value={settings.paypal_mode} 
+              onChange={(e) => setSettings({ ...settings, paypal_mode: e.target.value })} 
+              className="h-10 rounded border border-foreground/15 bg-background px-3 text-sm outline-none focus:border-foreground/30"
+            >
+              <option value="sandbox">Sandbox</option>
+              <option value="production">Production</option>
+            </select>
+          </div>
 
-        <h3>Production</h3>
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>Client ID (Production)</label>
-          <input type="text" value={settings.paypal_prod_client_id} onChange={(e) => setSettings({ ...settings, paypal_prod_client_id: e.target.value })} style={{ padding: 8, width: "100%" }} />
-        </div>
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>Secret (Production)</label>
-          <input type="text" value={settings.paypal_prod_secret} onChange={(e) => setSettings({ ...settings, paypal_prod_secret: e.target.value })} style={{ padding: 8, width: "100%" }} />
-        </div>
+          <div className="mt-4">
+            <h3 className="text-lg font-medium mb-3">Production</h3>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Client ID (Production)</label>
+                <input 
+                  type="text" 
+                  value={settings.paypal_prod_client_id} 
+                  onChange={(e) => setSettings({ ...settings, paypal_prod_client_id: e.target.value })} 
+                  className="h-10 w-full rounded border border-foreground/15 bg-background px-3 text-sm outline-none focus:border-foreground/30"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Secret (Production)</label>
+                <input 
+                  type="password" 
+                  value={settings.paypal_prod_secret} 
+                  onChange={(e) => setSettings({ ...settings, paypal_prod_secret: e.target.value })} 
+                  className="h-10 w-full rounded border border-foreground/15 bg-background px-3 text-sm outline-none focus:border-foreground/30"
+                />
+              </div>
+            </div>
+          </div>
 
-        <h3>Sandbox</h3>
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>Client ID (Sandbox)</label>
-          <input type="text" value={settings.paypal_sandbox_client_id} onChange={(e) => setSettings({ ...settings, paypal_sandbox_client_id: e.target.value })} style={{ padding: 8, width: "100%" }} />
-        </div>
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>Secret (Sandbox)</label>
-          <input type="text" value={settings.paypal_sandbox_secret} onChange={(e) => setSettings({ ...settings, paypal_sandbox_secret: e.target.value })} style={{ padding: 8, width: "100%" }} />
-        </div>
+          <div className="mt-4">
+            <h3 className="text-lg font-medium mb-3">Sandbox</h3>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Client ID (Sandbox)</label>
+                <input 
+                  type="text" 
+                  value={settings.paypal_sandbox_client_id} 
+                  onChange={(e) => setSettings({ ...settings, paypal_sandbox_client_id: e.target.value })} 
+                  className="h-10 w-full rounded border border-foreground/15 bg-background px-3 text-sm outline-none focus:border-foreground/30"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Secret (Sandbox)</label>
+                <input 
+                  type="password" 
+                  value={settings.paypal_sandbox_secret} 
+                  onChange={(e) => setSettings({ ...settings, paypal_sandbox_secret: e.target.value })} 
+                  className="h-10 w-full rounded border border-foreground/15 bg-background px-3 text-sm outline-none focus:border-foreground/30"
+                />
+              </div>
+            </div>
+          </div>
 
-        {message && <div style={{ marginBottom: 12, padding: 8, background: message.includes("Fehler") ? "#fee" : "#dfd", borderRadius: 6 }}>{message}</div>}
+          {message && (
+            <div className={`rounded border p-3 text-sm ${
+              message.includes("Fehler") 
+                ? "border-red-500/50 bg-red-50 text-red-800" 
+                : "border-green-500/50 bg-green-50 text-green-800"
+            }`}>
+              {message}
+            </div>
+          )}
 
-        <button onClick={save} disabled={saving} style={{ padding: "10px 20px" }}>{saving ? "Speichert..." : "Speichern"}</button>
+          <button 
+            onClick={save} 
+            disabled={saving}
+            className="h-10 rounded bg-foreground px-4 text-sm font-medium text-background disabled:opacity-60"
+          >
+            {saving ? "Speichert..." : "Speichern"}
+          </button>
+        </div>
       </div>
     </div>
   )

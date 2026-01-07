@@ -26,7 +26,6 @@ export default function TaxSettingsPage() {
     try {
       const token = typeof window !== "undefined" ? localStorage.getItem("admin_auth_token") : null
       const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
-      console.log("tax page: calling adminApiUrl:", adminApiUrl("/shop-settings"), "token present:", !!token)
       const r = await fetch(adminApiUrl("/shop-settings"), { headers })
       if (!r.ok) throw new Error("Failed")
       const data = await r.json()
@@ -63,38 +62,71 @@ export default function TaxSettingsPage() {
     }
   }
 
-  if (loading) return <div style={{ padding: 30 }}>Lädt...</div>
+  if (loading) return <div className="p-6">Lädt...</div>
 
   return (
-    <div style={{ padding: 30, maxWidth: 800 }}>
-      <h1>Steuer-Einstellungen</h1>
-      <p style={{ color: "#666", marginBottom: 20 }}>Verwalten Sie Steuer-Einstellungen, die für Preise und Rechnungen gelten.</p>
+    <div className="space-y-4 p-6" style={{ maxWidth: 800 }}>
+      <div>
+        <h1 className="text-2xl font-semibold">Steuer-Einstellungen</h1>
+        <p className="text-sm text-foreground/70">
+          Verwalten Sie Steuer-Einstellungen, die für Preise und Rechnungen gelten.
+        </p>
+      </div>
 
-      <div style={{ padding: 20, background: "#fafafa", borderRadius: 8 }}>
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>Steuersatz (dezimal, z.B. 0.19)</label>
-          <input type="text" value={settings.shop_tax_rate} onChange={(e) => setSettings({ ...settings, shop_tax_rate: e.target.value })} style={{ padding: 8, width: "100%" }} />
+      <div className="rounded border border-foreground/10 p-4">
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Steuersatz (dezimal, z.B. 0.19)</label>
+            <input 
+              type="text" 
+              value={settings.shop_tax_rate} 
+              onChange={(e) => setSettings({ ...settings, shop_tax_rate: e.target.value })} 
+              className="h-10 w-full rounded border border-foreground/15 bg-background px-3 text-sm outline-none focus:border-foreground/30"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Steueraufteilung anzeigen</label>
+            <select 
+              value={settings.shop_display_tax_breakdown} 
+              onChange={(e) => setSettings({ ...settings, shop_display_tax_breakdown: e.target.value })} 
+              className="h-10 rounded border border-foreground/15 bg-background px-3 text-sm outline-none focus:border-foreground/30"
+            >
+              <option value="true">Ja</option>
+              <option value="false">Nein</option>
+            </select>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Preise inklusive Steuer anzeigen</label>
+            <select 
+              value={settings.shop_show_prices_with_tax} 
+              onChange={(e) => setSettings({ ...settings, shop_show_prices_with_tax: e.target.value })} 
+              className="h-10 rounded border border-foreground/15 bg-background px-3 text-sm outline-none focus:border-foreground/30"
+            >
+              <option value="true">Ja</option>
+              <option value="false">Nein</option>
+            </select>
+          </div>
+
+          {message && (
+            <div className={`rounded border p-3 text-sm ${
+              message.includes("Fehler") 
+                ? "border-red-500/50 bg-red-50 text-red-800" 
+                : "border-green-500/50 bg-green-50 text-green-800"
+            }`}>
+              {message}
+            </div>
+          )}
+
+          <button 
+            onClick={save} 
+            disabled={saving}
+            className="h-10 rounded bg-foreground px-4 text-sm font-medium text-background disabled:opacity-60"
+          >
+            {saving ? "Speichert..." : "Speichern"}
+          </button>
         </div>
-
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>Steueraufteilung anzeigen</label>
-          <select value={settings.shop_display_tax_breakdown} onChange={(e) => setSettings({ ...settings, shop_display_tax_breakdown: e.target.value })} style={{ padding: 8 }}>
-            <option value="true">Ja</option>
-            <option value="false">Nein</option>
-          </select>
-        </div>
-
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>Preise inklusive Steuer anzeigen</label>
-          <select value={settings.shop_show_prices_with_tax} onChange={(e) => setSettings({ ...settings, shop_show_prices_with_tax: e.target.value })} style={{ padding: 8 }}>
-            <option value="true">Ja</option>
-            <option value="false">Nein</option>
-          </select>
-        </div>
-
-        {message && <div style={{ marginBottom: 12, padding: 8, background: message.includes("Fehler") ? "#fee" : "#dfd", borderRadius: 6 }}>{message}</div>}
-
-        <button onClick={save} disabled={saving} style={{ padding: "10px 20px" }}>{saving ? "Speichert..." : "Speichern"}</button>
       </div>
     </div>
   )
