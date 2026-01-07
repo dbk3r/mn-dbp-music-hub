@@ -1,5 +1,6 @@
 "use client"
 import { useState } from "react"
+import { adminApiUrl } from "../_lib/api"
 
 type Props = {
   order: any
@@ -64,7 +65,7 @@ export default function OrderEdit({ order, onClose, onSaved }: Props) {
       if (currency) body.currencyCode = currency
       if (email) body.customer_email = email
 
-      const r = await fetch(`/dbp-admin/api/orders/${order.id}`, {
+      const r = await fetch(adminApiUrl(`/orders/${order.id}`), {
         method: "PATCH",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify(body),
@@ -85,7 +86,7 @@ export default function OrderEdit({ order, onClose, onSaved }: Props) {
     setError(null)
     try {
       const token = localStorage.getItem("admin_auth_token")
-      const r = await fetch(`/dbp-admin/api/orders/${order.id}`, {
+      const r = await fetch(adminApiUrl(`/orders/${order.id}`), {
         method: "DELETE",
         headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       })

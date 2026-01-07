@@ -22,32 +22,27 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     return res.status(401).json({ message: "unauthorized" })
   }
   const bearer = authHeader.slice(7)
-  const serviceToken = process.env.BACKEND_SERVICE_TOKEN
   const serviceKey = process.env.BACKEND_SERVICE_KEY
-  if (serviceToken && bearer === serviceToken) {
-    // Deprecated path: accept but warn to migrate to service key
-    console.warn("Deprecation: BACKEND_SERVICE_TOKEN is deprecated. Please set BACKEND_SERVICE_KEY and rotate to service JWTs.")
-  } else {
-    let accepted = false
-    if (serviceKey) {
-      try {
-        const decodedSvc = jwt.verify(bearer, serviceKey, { algorithms: ["HS256"] }) as any
-        if (decodedSvc && decodedSvc.service === "admin") accepted = true
-      } catch (e) {
-        // ignore and try fallback
-      }
-    }
 
-    if (!accepted) {
-      try {
-        const decoded = jwt.verify(bearer, JWT_SECRET) as any
-        if (decoded && decoded.mfaPending) {
-          return res.status(401).json({ message: "mfa verification required" })
-        }
-        accepted = true
-      } catch (err) {
-        return res.status(401).json({ message: "invalid token" })
-      }
+  // 1) Prefer service JWT signed with BACKEND_SERVICE_KEY (HS256)
+  let accepted = false
+  if (serviceKey) {
+    try {
+      const decodedSvc = jwt.verify(bearer, serviceKey, { algorithms: ["HS256"] }) as any
+      if (decodedSvc && decodedSvc.service === "admin") accepted = true
+    } catch (e) {
+      // ignore and try fallback to user JWT
+    }
+  }
+
+  // 2) Fallback: accept a normal user/admin JWT signed with JWT_SECRET
+  if (!accepted) {
+    try {
+      const decoded = jwt.verify(bearer, JWT_SECRET) as any
+      if (decoded && decoded.mfaPending) return res.status(401).json({ message: "mfa verification required" })
+      accepted = true
+    } catch (err) {
+      return res.status(401).json({ message: "invalid token" })
     }
   }
 

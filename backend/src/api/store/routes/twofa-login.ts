@@ -3,6 +3,10 @@ import { Router, Request } from "express"
 import crypto from "crypto"
 import { sendPinMail } from "../../../services/mail-service"
 
+// Hinweis: Ein Benutzer kann mehrere Rollen haben (admin, vendor, customer).
+// Store-Authentifizierung erlaubt jede Rolle; rollenbasierte Autorisierung
+// wird später auf Berechtigungen / geschützte Endpunkte angewendet.
+
 interface ScopeRequest extends Request {
   scope: any
 }

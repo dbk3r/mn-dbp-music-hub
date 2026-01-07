@@ -1,6 +1,7 @@
 "use client"
 import { useEffect, useState } from "react"
 import OrderEdit from "../_components/OrderEdit"
+import { adminApiUrl } from "../_lib/api"
 
 type Order = {
   id: string
@@ -30,7 +31,7 @@ export default function OrdersPage() {
       const token = typeof window !== "undefined" ? localStorage.getItem("admin_auth_token") : null
       const headers: Record<string, string> = {}
       if (token) headers.Authorization = `Bearer ${token}`
-      const r = await fetch("/dbp-admin/api/orders", { headers })
+      const r = await fetch(adminApiUrl("/orders"), { headers })
       if (!r.ok) {
         const txt = await r.text()
         throw new Error(`Fehler: ${r.status} ${txt}`)
@@ -51,7 +52,7 @@ export default function OrdersPage() {
     if (!confirm("Bestellung wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.")) return
     try {
       const token = typeof window !== "undefined" ? localStorage.getItem("admin_auth_token") : null
-      const r = await fetch(`/dbp-admin/api/orders/${id}`, {
+      const r = await fetch(adminApiUrl(`/orders/${id}`), {
         method: "DELETE",
         headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       })

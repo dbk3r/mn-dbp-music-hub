@@ -1,5 +1,6 @@
 "use client"
 import { useState, useEffect } from "react"
+import { adminApiUrl } from "../../_lib/api"
 
 type PayPalSettings = {
   paypal_mode: string
@@ -29,7 +30,7 @@ export default function PayPalSettingsPage() {
     try {
       const token = typeof window !== "undefined" ? localStorage.getItem("admin_auth_token") : null
       const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
-      const r = await fetch("/dbp-admin/api/paypal-settings", { headers })
+      const r = await fetch(adminApiUrl("/paypal-settings"), { headers })
       if (!r.ok) throw new Error("Failed")
       const data = await r.json()
       setSettings({
@@ -53,7 +54,7 @@ export default function PayPalSettingsPage() {
       const token = typeof window !== "undefined" ? localStorage.getItem("admin_auth_token") : null
       const headers: Record<string, string> = { "Content-Type": "application/json" }
       if (token) headers.Authorization = `Bearer ${token}`
-      const r = await fetch("/dbp-admin/api/paypal-settings", {
+      const r = await fetch(adminApiUrl("/paypal-settings"), {
         method: "POST",
         headers,
         body: JSON.stringify(settings),

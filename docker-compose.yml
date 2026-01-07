@@ -35,6 +35,7 @@ services:
       SMTP_SECURE: "true"
       SMTP_USER: info@dbp-music.de
       SMTP_PASS: Nulleins01b#=
+      BACKEND_SERVICE_TOKEN: dev-backend-service-token-please-change
       ADMIN_EMAIL: bk.pc@gmx.de
       ADMIN_PASSWORD: nulleins
     env_file:
@@ -76,7 +77,7 @@ services:
     environment:
       NEXT_PUBLIC_MEDUSA_BACKEND_URL: http://backend:9000
       NEXT_PUBLIC_BASE_PATH: /dbp-admin
-      MEDUSA_BACKEND_INTERNAL_URL: http://backend:9000
+      MEDUSA_BACKEND_INTERNAL_URL: http://backend:9000     
     env_file:
       - ./admin/.env
     depends_on:

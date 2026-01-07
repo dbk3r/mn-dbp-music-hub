@@ -4,8 +4,9 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import UserAvatar from "../components/UserAvatar";
+import { adminApiUrl } from "./_lib/api";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -22,21 +23,68 @@ interface MenuItem {
   href: string
   label: string
   permission?: { resource: string; action: string }
+  children?: MenuItem[]
 }
 
 const menuItems: MenuItem[] = [
-  { href: "/products", label: "Produkte", permission: { resource: "products", action: "view" } },
-  { href: "/audio", label: "Audio-Dateien", permission: { resource: "audio", action: "view" } },
-  { href: "/license-models", label: "Lizenzmodelle", permission: { resource: "license-models", action: "view" } },
-  { href: "/categories", label: "Kategorien", permission: { resource: "categories", action: "view" } },
-  { href: "/tags", label: "Tags", permission: { resource: "tags", action: "view" } },
-  { href: "/users", label: "User", permission: { resource: "users", action: "view" } },
-  { href: "/orders", label: "Bestellungen", permission: { resource: "orders", action: "view" } },
-  { href: "/settings", label: "Benutzereinstellungen", permission: { resource: "settings", action: "view" } },
-  { href: "/settings/system", label: "Systemeinstellungen", permission: { resource: "admin", action: "manage" } },
-  { href: "/settings/shop", label: "Shop-Verwaltung", permission: { resource: "settings", action: "edit" } },
-  { href: "/settings/paypal", label: "PayPal-Einstellungen", permission: { resource: "settings", action: "edit" } },
+  {
+    href: "/shop",
+    label: "Shop",
+    permission: { resource: "products", action: "view" },
+    children: [
+      { href: "/shop/products", label: "Produkte", permission: { resource: "products", action: "view" } },
+      { href: "/shop/orders", label: "Bestellungen", permission: { resource: "orders", action: "view" } },
+    ],
+  },
+  {
+    href: "/content",
+    label: "Content",
+    permission: { resource: "audio", action: "view" },
+    children: [
+      { href: "/content/audio", label: "Audio-Dateien", permission: { resource: "audio", action: "view" } },
+      { href: "/content/license-models", label: "Lizenzmodelle", permission: { resource: "license-models", action: "view" } },
+      { href: "/content/categories", label: "Kategorien", permission: { resource: "categories", action: "view" } },
+      { href: "/content/tags", label: "Tags", permission: { resource: "tags", action: "view" } },
+    ],
+  },
+  {
+    href: "/settings",
+    label: "Einstellungen",
+    permission: { resource: "settings", action: "edit" },
+    children: [
+      { href: "/settings/stripe", label: "Stripe", permission: { resource: "admin", action: "manage" } },
+      { href: "/settings/tax", label: "Steuern", permission: { resource: "settings", action: "edit" } },
+      { href: "/settings/paypal", label: "PayPal", permission: { resource: "settings", action: "edit" } },
+      { href: "/users", label: "Benutzerverwaltung", permission: { resource: "users", action: "view" } },
+    ],
+  },
+  // Users are accessible via avatar menu; roles removed
 ]
+
+function Collapsible({ isOpen, children }: { isOpen: boolean; children: React.ReactNode }) {
+  const innerRef = useRef<HTMLDivElement | null>(null)
+  const [height, setHeight] = useState<number>(0)
+
+  useEffect(() => {
+    if (!innerRef.current) return
+    // measure content height
+    setHeight(innerRef.current.scrollHeight)
+  }, [children])
+
+  useEffect(() => {
+    if (!innerRef.current) return
+    // update measurement when opening
+    if (isOpen) setHeight(innerRef.current.scrollHeight)
+  }, [isOpen])
+
+  return (
+    <div style={{ overflow: "hidden", height: isOpen ? height : 0, transition: "height 200ms ease" }} aria-hidden={!isOpen}>
+      <div ref={innerRef}>
+        {children}
+      </div>
+    </div>
+  )
+}
 
 export default function RootLayout({
   children,
@@ -48,6 +96,7 @@ export default function RootLayout({
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [userPermissions, setUserPermissions] = useState<Array<{ resource: string; action: string }>>([])
   const [isAdmin, setIsAdmin] = useState(false)
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -174,7 +223,7 @@ export default function RootLayout({
       // development environment with a configured service token to access
       // admin pages even without a client token.
       try {
-        const res = await fetch('/dbp-admin/api/server-auth-status')
+        const res = await fetch(adminApiUrl('/server-auth-status'))
         if (res.ok) {
           const data = await res.json()
           if (data?.available) {
@@ -257,10 +306,16 @@ export default function RootLayout({
     return userPermissions.some(p => p.resource === resource && p.action === action)
   }
 
-  const visibleMenuItems = menuItems.filter(item => {
-    if (!item.permission) return true
-    return hasPermission(item.permission.resource, item.permission.action)
-  })
+  const visibleMenuItems = menuItems
+    .map(item => {
+      if (!item.permission || hasPermission(item.permission.resource, item.permission.action)) {
+        // filter children by permission
+        const children = item.children ? item.children.filter(c => !c.permission || hasPermission(c.permission.resource, c.permission.action)) : undefined
+        return { ...item, children }
+      }
+      return null
+    })
+    .filter(Boolean) as MenuItem[]
 
   // Show loading state
   if (loading) {
@@ -300,13 +355,34 @@ export default function RootLayout({
               </div>
               <nav className="flex flex-col gap-1 text-sm">
                 {visibleMenuItems.map(item => (
-                  <Link
-                    key={item.href}
-                    className="rounded px-3 py-2 hover:bg-foreground/5"
-                    href={item.href}
-                  >
-                    {item.label}
-                  </Link>
+                  <div key={item.href}>
+                    {item.children && item.children.length > 0 ? (
+                      <div className="mb-1">
+                        <div
+                          onClick={() => setExpanded(prev => ({ ...prev, [item.href]: !prev[item.href] }))}
+                          className="rounded px-3 py-2 font-semibold flex items-center justify-between cursor-pointer hover:bg-foreground/5"
+                        >
+                          <span>{item.label}</span>
+                          <span style={{ transform: expanded[item.href] ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 160ms ease' }}>▶</span>
+                        </div>
+                        <div className="ml-3 mt-1">
+                          <Collapsible isOpen={!!expanded[item.href]}>
+                            <div className="flex flex-col gap-1">
+                              {item.children.map(child => (
+                                <Link key={child.href} className="rounded px-3 py-2 hover:bg-foreground/5 text-sm block" href={child.href}>
+                                  {child.label}
+                                </Link>
+                              ))}
+                            </div>
+                          </Collapsible>
+                        </div>
+                      </div>
+                    ) : (
+                      <Link key={item.href} className="rounded px-3 py-2 hover:bg-foreground/5" href={item.href}>
+                        {item.label}
+                      </Link>
+                    )}
+                  </div>
                 ))}
               </nav>
             </aside>

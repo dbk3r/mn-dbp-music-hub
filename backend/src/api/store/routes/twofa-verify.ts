@@ -2,6 +2,10 @@
 import { Router, Request } from "express"
 const router = Router()
 
+// Hinweis: Ein Benutzer kann mehrere Rollen haben (admin, vendor, customer).
+// Store-2FA betrifft nur Authentifizierung; eine Rolle 'admin' schließt
+// nicht automatisch Store-Zugriff aus.
+
 interface ScopeSessionRequest extends Request {
   scope: any
   session: any

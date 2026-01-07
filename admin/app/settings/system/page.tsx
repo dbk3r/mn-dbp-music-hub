@@ -1,10 +1,13 @@
 "use client"
 import { useState, useEffect } from "react"
+import { adminApiUrl } from "../../_lib/api"
 
 type SystemSettings = {
   stripe_publishable_key: string
   stripe_secret_key: string
   stripe_webhook_secret: string
+  activation_email_subject?: string
+  activation_email_template?: string
 }
 
 export default function SystemSettingsPage() {
@@ -26,7 +29,7 @@ export default function SystemSettingsPage() {
       const token = typeof window !== "undefined" ? localStorage.getItem("admin_auth_token") : null
       const headers: Record<string, string> = {}
       if (token) headers.Authorization = `Bearer ${token}`
-      const r = await fetch("/dbp-admin/api/settings", { headers })
+      const r = await fetch(adminApiUrl("/settings"), { headers })
       if (r.ok) {
         const data = await r.json()
         setSettings(data)
@@ -48,7 +51,7 @@ export default function SystemSettingsPage() {
       const token = typeof window !== "undefined" ? localStorage.getItem("admin_auth_token") : null
       const headers: Record<string, string> = { "Content-Type": "application/json" }
       if (token) headers.Authorization = `Bearer ${token}`
-      const r = await fetch("/dbp-admin/api/settings", {
+      const r = await fetch(adminApiUrl("/settings"), {
         method: "POST",
         headers,
         body: JSON.stringify(settings),
@@ -124,6 +127,40 @@ export default function SystemSettingsPage() {
           />
           <small style={{ color: "#666" }}>
             Secret für die Validierung eingehender Webhooks von Stripe.
+          </small>
+        </div>
+
+        <h2 style={{ margin: "24px 0 12px" }}>Aktivierungs-E-Mail</h2>
+
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ display: "block", fontWeight: 600, marginBottom: 4 }}>
+            E-Mail Betreff
+          </label>
+          <input
+            type="text"
+            value={(settings as any).activation_email_subject || ""}
+            onChange={(e) => setSettings({ ...settings, activation_email_subject: e.target.value })}
+            placeholder="Aktiviere dein Konto"
+            style={{ width: "100%", padding: 8 }}
+          />
+          <small style={{ color: "#666" }}>
+            Betreffzeile für Aktivierungs-E-Mails (Platzhalter nicht nötig).
+          </small>
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: "block", fontWeight: 600, marginBottom: 4 }}>
+            E-Mail Template (HTML)
+          </label>
+          <textarea
+            value={(settings as any).activation_email_template || ""}
+            onChange={(e) => setSettings({ ...settings, activation_email_template: e.target.value })}
+            placeholder="Bitte aktiviere dein Konto: {{activation_link}}"
+            rows={8}
+            style={{ width: "100%", padding: 8, fontFamily: "monospace" }}
+          />
+          <small style={{ color: "#666" }}>
+            HTML-Template für Aktivierungs-E-Mails. Verwende die Platzhalter <code>{'{{activation_link}}'}</code> oder <code>{'{{token}}'}</code>.
           </small>
         </div>
 

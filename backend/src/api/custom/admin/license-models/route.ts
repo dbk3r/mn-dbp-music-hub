@@ -1,8 +1,10 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
+import { requireAdmin } from "../../../middlewares/auth"
 import { AppDataSource } from "../../../../datasource/data-source"
 import { LicenseModel } from "../../../../models/license-model"
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
+  if (!(await requireAdmin(req as any, res as any))) return
   console.log("[custom/admin/license-models] auth header:", req.headers.authorization)
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");

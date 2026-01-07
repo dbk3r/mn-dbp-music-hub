@@ -3,6 +3,8 @@ import { useState } from "react"
 export default function RegisterPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [passwordConfirm, setPasswordConfirm] = useState("")
+  const [emailExists, setEmailExists] = useState<boolean | null>(null)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
 
@@ -10,11 +12,27 @@ export default function RegisterPage() {
     e.preventDefault()
     setLoading(true)
     setMessage(null)
+    // client-side validations
+    if (String(password).length < 5) {
+      setMessage("Passwort muss mindestens 5 Zeichen lang sein.")
+      setLoading(false)
+      return
+    }
+    if (password !== passwordConfirm) {
+      setMessage("Passwort und Bestätigung stimmen nicht überein.")
+      setLoading(false)
+      return
+    }
+    if (emailExists === true) {
+      setMessage("Diese E-Mail ist bereits registriert.")
+      setLoading(false)
+      return
+    }
     try {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, password_confirm: passwordConfirm }),
       })
       const data = await res.json().catch(() => null)
       if (!res.ok) {
@@ -29,21 +47,48 @@ export default function RegisterPage() {
     }
   }
 
+  async function checkEmail() {
+    if (!email || !email.includes("@")) return
+    try {
+      const r = await fetch("/api/auth/check-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      })
+      if (r.ok) {
+        const d = await r.json()
+        setEmailExists(!!d.exists)
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
   return (
     <div style={{maxWidth:400,margin:"40px auto"}}>
       <h1>Registrieren</h1>
       <form onSubmit={submit}>
         <div style={{marginBottom:12}}>
           <label>Email</label>
-          <input value={email} onChange={(e)=>setEmail(e.target.value)} required style={{width:"100%"}} />
+          <input value={email} onChange={(e)=>setEmail(e.target.value)} onBlur={checkEmail} required style={{width:"100%"}} />
+          {emailExists === true && <div style={{color:'red'}}>E-Mail bereits registriert</div>}
         </div>
         <div style={{marginBottom:12}}>
           <label>Passwort</label>
           <input type="password" value={password} onChange={(e)=>setPassword(e.target.value)} required style={{width:"100%"}} />
+          {password && password.length < 5 && <div style={{color:'red'}}>Mindestens 5 Zeichen</div>}
         </div>
-        <button type="submit" disabled={loading}>{loading?"Bitte warten...":"Registrieren"}</button>
+        <div style={{marginBottom:12}}>
+          <label>Passwort bestätigen</label>
+          <input type="password" value={passwordConfirm} onChange={(e)=>setPasswordConfirm(e.target.value)} required style={{width:"100%"}} />
+          {passwordConfirm && password !== passwordConfirm && <div style={{color:'red'}}>Passwörter stimmen nicht überein</div>}
+        </div>
+        <button type="submit" disabled={loading || emailExists === true || password.length < 5 || password !== passwordConfirm}>
+          {loading?"Bitte warten...":"Registrieren"}
+        </button>
       </form>
       {message && <p style={{marginTop:12}}>{message}</p>}
     </div>
   )
 }
+

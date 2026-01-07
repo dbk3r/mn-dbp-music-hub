@@ -1,9 +1,11 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
+import { requireAdmin } from "../../../../middlewares/auth"
 import { AppDataSource } from "../../../../../datasource/data-source"
 import { User } from "../../../../../models/user"
 import { Role } from "../../../../../models/role"
 
 export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
+  if (!(await requireAdmin(req as any, res as any))) return
   console.log("[custom/admin/users/:id] PATCH auth header:", req.headers.authorization)
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, OPTIONS, PUT, DELETE, PATCH");
@@ -47,6 +49,7 @@ export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
 }
 
 export async function DELETE(req: MedusaRequest, res: MedusaResponse) {
+  if (!(await requireAdmin(req as any, res as any))) return
   console.log("[custom/admin/users/:id] DELETE auth header:", req.headers.authorization)
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, OPTIONS, PUT, DELETE, PATCH");

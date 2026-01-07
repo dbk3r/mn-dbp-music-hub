@@ -9,6 +9,10 @@ export interface AuthenticatedRequest extends MedusaRequest {
   user?: User
 }
 
+// Hinweis: Benutzer können mehrere Rollen besitzen. `requireAuth` prüft
+// lediglich die Identität und `isActive`-Status; spezifische Rechte
+// werden durch `requirePermission` oder `requireAdmin` geprüft.
+
 export async function requireAuth(
   req: AuthenticatedRequest,
   res: MedusaResponse,
@@ -82,6 +86,22 @@ export async function requirePermission(
 
   if (!hasPermission) {
     res.status(403).json({ message: "insufficient permissions" })
+    return false
+  }
+
+  return true
+}
+
+export async function requireAdmin(
+  req: AuthenticatedRequest,
+  res: MedusaResponse
+): Promise<boolean> {
+  const authed = await requireAuth(req, res)
+  if (!authed) return false
+
+  const user = req.user!
+  if (!user.roles || !user.roles.some(r => r.name === "admin")) {
+    res.status(403).json({ message: "admin only" })
     return false
   }
 

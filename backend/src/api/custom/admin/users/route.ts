@@ -1,4 +1,5 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
+import { requireAdmin } from "../../../middlewares/auth"
 import { AppDataSource } from "../../../../datasource/data-source"
 import { User } from "../../../../models/user"
 import { Role } from "../../../../models/role"
@@ -6,6 +7,7 @@ import bcrypt from "bcrypt"
 import { randomUUID } from "crypto"
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
+  if (!(await requireAdmin(req as any, res as any))) return
   console.log("[custom/admin/users] auth header:", req.headers.authorization)
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, OPTIONS, PUT, DELETE");
@@ -33,6 +35,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 // PATCH/DELETE moved to users/[id]/route.ts
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
+  if (!(await requireAdmin(req as any, res as any))) return
   console.log("[custom/admin/users] POST auth header:", req.headers.authorization)
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, OPTIONS, PUT, DELETE, POST");

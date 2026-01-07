@@ -79,7 +79,7 @@ async function seedRolesAndPermissions() {
     }
   }
 
-  // Define roles
+  // Define roles: admin, vendor, customer
   const roles = [
     {
       name: "admin",
@@ -97,25 +97,20 @@ async function seedRolesAndPermissions() {
       ]
     },
     {
-      name: "editor",
-      description: "Editor mit Bearbeitungsrechten",
+      name: "vendor",
+      description: "Vendor: kann eigene Produkte/Audio verwalten",
       permissions: [
         "products:view", "products:create", "products:edit",
         "audio:view", "audio:create", "audio:edit",
         "license-models:view", "license-models:create", "license-models:edit",
-        "categories:view", "categories:create", "categories:edit",
-        "tags:view", "tags:create", "tags:edit",
-        "users:view", "users:create", "users:edit",
-        "settings:view", "settings:edit"
+        "categories:view", "tags:view"
       ]
     },
     {
-      name: "viewer",
-      description: "Betrachter mit Lesezugriff",
+      name: "customer",
+      description: "Kunde: kann Produkte ansehen und kaufen",
       permissions: [
-        "products:view", "audio:view", "license-models:view",
-        "categories:view", "tags:view", "users:view",
-        "roles:view", "settings:view"
+        "products:view", "audio:view", "license-models:view"
       ]
     }
   ]

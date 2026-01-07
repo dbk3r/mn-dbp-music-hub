@@ -2,6 +2,7 @@ import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { AppDataSource } from "../../../../datasource/data-source"
 import { Order } from "../../../../models/order"
 import jwt from "jsonwebtoken"
+import { requireAdmin } from "../../../middlewares/auth"
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   res.header("Access-Control-Allow-Origin", "*")
@@ -23,8 +24,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     // deprecated static token path
   }
 
-  if (!(serviceToken && bearer === serviceToken)) {
-    let accepted = false
+    if (!(serviceToken && bearer === serviceToken)) {
+      let accepted = false
     // 1) try service JWT signed with BACKEND_SERVICE_KEY
     if (serviceKey) {
       try {
@@ -40,13 +41,20 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       try {
         const decoded = jwt.verify(bearer, JWT_SECRET) as any
         if (decoded && decoded.mfaPending) return res.status(401).json({ message: "mfa verification required" })
+        // set a temporary field so requireAdmin can reuse verification
+        ;(req as any).__decoded_jwt = decoded
         accepted = true
       } catch (err) {
         return res.status(401).json({ message: "invalid token" })
       }
     }
   }
-
+  // If accepted via service token, allow. Otherwise enforce admin role.
+  if (!(serviceToken && bearer === serviceToken)) {
+    // reuse requireAdmin which verifies token again; but if we have decoded JWT already, stash userId
+    const ok = await requireAdmin(req as any, res as any)
+    if (!ok) return
+  }
   if (!AppDataSource.isInitialized) await AppDataSource.initialize()
   try {
     // Fetch orders joined with customer info and return buyer name/email and
