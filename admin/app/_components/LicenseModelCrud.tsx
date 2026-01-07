@@ -37,8 +37,19 @@ export default function LicenseModelCrud() {
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isFormExpanded, setIsFormExpanded] = useState(false);
+  const [search, setSearch] = useState("");
 
   const url = useMemo(() => adminApiUrl("/license-models"), []);
+
+  const filteredItems = useMemo(() => {
+    if (!search.trim()) return items
+    const term = search.toLowerCase()
+    return items.filter((item) =>
+      item.name.toLowerCase().includes(term) ||
+      (item.description?.toLowerCase().includes(term) ?? false) ||
+      (item.legalDescription?.toLowerCase().includes(term) ?? false)
+    )
+  }, [items, search]);
 
   const refresh = useCallback(async () => {
     setError(null);
@@ -254,6 +265,16 @@ export default function LicenseModelCrud() {
         </div>
       ) : null}
 
+      <div className="mb-4">
+        <input
+          type="text"
+          placeholder="Suchen... (Name, Beschreibung, Rechtlicher Text)"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="h-10 w-full max-w-[600px] rounded border border-foreground/15 bg-background px-3 text-sm outline-none focus:border-foreground/30"
+        />
+      </div>
+
       <div className="overflow-hidden rounded border border-foreground/10">
         <table className="w-full text-left text-sm">
           <thead className="bg-foreground/5">
@@ -266,14 +287,14 @@ export default function LicenseModelCrud() {
             </tr>
           </thead>
           <tbody>
-            {items.length === 0 ? (
+            {filteredItems.length === 0 ? (
               <tr>
                 <td className="px-3 py-3 text-foreground/70" colSpan={5}>
-                  Keine Lizenzmodelle.
+                  {search ? "Keine Treffer." : "Keine Lizenzmodelle."}
                 </td>
               </tr>
             ) : (
-              items.map((item) => (
+              filteredItems.map((item) => (
                 <tr key={item.id} className="border-t border-foreground/10">
                   <td className="px-3 py-2">{item.id}</td>
                   <td className="px-3 py-2">{item.name}</td>

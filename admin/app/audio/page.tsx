@@ -45,10 +45,25 @@ export default function AudioPage() {
   const [licenses, setLicenses] = useState<LicenseItem[]>([]);
 
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [isUploadFormExpanded, setIsUploadFormExpanded] = useState(false);
+  const [search, setSearch] = useState("");
+
   const selected = useMemo(
     () => items.find((i) => i.id === selectedId) ?? null,
     [items, selectedId]
   );
+
+  const filteredItems = useMemo(() => {
+    if (!search.trim()) return items
+    const term = search.toLowerCase()
+    return items.filter((a) =>
+      a.title.toLowerCase().includes(term) ||
+      (a.artist?.toLowerCase().includes(term) ?? false) ||
+      (a.description?.toLowerCase().includes(term) ?? false) ||
+      a.original_name.toLowerCase().includes(term) ||
+      a.filename.toLowerCase().includes(term)
+    )
+  }, [items, search]);
 
   // Metadata fields for editing
   const [editTitle, setEditTitle] = useState<string>("");
@@ -58,8 +73,6 @@ export default function AudioPage() {
   const [editCategoryId, setEditCategoryId] = useState<number | null>(null);
   const [editTagIds, setEditTagIds] = useState<number[]>([]);
   const [editLicenseModelIds, setEditLicenseModelIds] = useState<number[]>([]);
-
-  const [isUploadFormExpanded, setIsUploadFormExpanded] = useState(false);
 
   useEffect(() => {
     if (selected) {
@@ -420,6 +433,16 @@ export default function AudioPage() {
         </div>
       ) : null}
 
+      <div className="mb-4">
+        <input
+          type="text"
+          placeholder="Suchen... (Titel, Künstler, Beschreibung, Dateiname)"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="h-10 w-full max-w-[600px] rounded border border-foreground/15 bg-background px-3 text-sm outline-none focus:border-foreground/30"
+        />
+      </div>
+
       <div className="overflow-hidden rounded border border-foreground/10">
         <table className="w-full text-left text-sm">
           <thead className="bg-foreground/5">
@@ -437,14 +460,14 @@ export default function AudioPage() {
             </tr>
           </thead>
           <tbody>
-            {items.length === 0 ? (
+            {filteredItems.length === 0 ? (
               <tr>
                 <td className="px-3 py-3 text-foreground/70" colSpan={10}>
-                  Keine Audio-Dateien.
+                  {search ? "Keine Treffer." : "Keine Audio-Dateien."}
                 </td>
               </tr>
             ) : (
-              items.map((a) => (
+              filteredItems.map((a) => (
                 <tr key={a.id} className="border-t border-foreground/10">
                   <td className="px-3 py-2">{a.id}</td>
                   <td className="px-3 py-2">{a.title}</td>

@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import OrderEdit from "../_components/OrderEdit"
 import { adminApiUrl } from "../_lib/api"
 
@@ -19,6 +19,7 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [editing, setEditing] = useState<any | null>(null)
+  const [search, setSearch] = useState("")
 
   useEffect(() => {
     load()
@@ -66,6 +67,25 @@ export default function OrdersPage() {
     }
   }
 
+  const filteredOrders = useMemo(() => {
+    if (!orders || !search.trim()) return orders
+    const term = search.toLowerCase()
+    return orders.filter((o) => {
+      const productStr = Array.isArray(o.product_titles)
+        ? o.product_titles.join(" ")
+        : Array.isArray((o as any).items)
+        ? (o as any).items.map((it: any) => it.title || it.name || "").join(" ")
+        : ""
+      return (
+        o.id.toLowerCase().includes(term) ||
+        (o.customer_name?.toLowerCase().includes(term) ?? false) ||
+        (o.customer_email?.toLowerCase().includes(term) ?? false) ||
+        (o.status?.toLowerCase().includes(term) ?? false) ||
+        productStr.toLowerCase().includes(term)
+      )
+    })
+  }, [orders, search])
+
   if (loading) return <div style={{ padding: 30 }}>Lädt Bestellungen...</div>
 
   return (
@@ -73,8 +93,27 @@ export default function OrdersPage() {
       <h1>Bestellungen</h1>
       {error && <div style={{ marginBottom: 12, color: "#900" }}>{error}</div>}
 
-      {!orders || orders.length === 0 ? (
-        <div>Keine Bestellungen gefunden.</div>
+      <div style={{ marginBottom: 16 }}>
+        <input
+          type="text"
+          placeholder="Suchen... (ID, Käufer, E-Mail, Produkt, Status)"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{
+            width: "100%",
+            maxWidth: 600,
+            height: 40,
+            padding: "0 12px",
+            border: "1px solid rgba(128, 128, 128, 0.3)",
+            borderRadius: 4,
+            fontSize: 14,
+            outline: "none"
+          }}
+        />
+      </div>
+
+      {!filteredOrders || filteredOrders.length === 0 ? (
+        <div>{search ? "Keine Treffer." : "Keine Bestellungen gefunden."}</div>
       ) : (
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
@@ -90,7 +129,7 @@ export default function OrdersPage() {
             </tr>
           </thead>
           <tbody>
-            {orders.map((o) => (
+            {filteredOrders.map((o) => (
               <tr key={o.id} style={{ borderTop: "1px solid #eee" }}>
                 <td style={{ padding: 8, verticalAlign: "top" }}>{o.id}</td>
                 <td style={{ padding: 8, verticalAlign: "top" }}>{o.customer_name ?? "-"}</td>

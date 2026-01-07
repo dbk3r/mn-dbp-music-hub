@@ -53,7 +53,9 @@ services:
   frontend:
     image: node:20
     working_dir: /app
-    command: sh -c "yarn install && yarn dev -- -H 0.0.0.0 -p 3000"    
+    command: sh -c "yarn install && yarn dev -- -H 0.0.0.0 -p 3000"
+    environment:
+      BACKEND_URL: http://backend:9000
     env_file:
       - ./frontend/.env
     depends_on:

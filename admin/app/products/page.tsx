@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import Link from "next/link"
 import { adminApiUrl } from "../_lib/api"
 
@@ -31,6 +31,7 @@ type Product = {
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState("")
 
   useEffect(() => {
     loadProducts()
@@ -72,6 +73,24 @@ export default function ProductsPage() {
     return (cents / 100).toFixed(2)
   }
 
+  const filteredProducts = useMemo(() => {
+    if (!search.trim()) return products
+    const term = search.toLowerCase()
+    return products.filter((p) => {
+      const variantsStr = p.variants.map((v) => v.name + " " + v.license_model_name).join(" ")
+      const tagsStr = p.tags.map((t) => t.name).join(" ")
+      return (
+        p.title.toLowerCase().includes(term) ||
+        (p.audio?.artist?.toLowerCase().includes(term) ?? false) ||
+        (p.category?.name.toLowerCase().includes(term) ?? false) ||
+        (p.description?.toLowerCase().includes(term) ?? false) ||
+        p.status.toLowerCase().includes(term) ||
+        variantsStr.toLowerCase().includes(term) ||
+        tagsStr.toLowerCase().includes(term)
+      )
+    })
+  }, [products, search])
+
   if (loading) return <div style={{ padding: 30 }}>Lädt...</div>
 
   return (
@@ -83,8 +102,27 @@ export default function ProductsPage() {
         </Link>
       </div>
 
-      {products.length === 0 ? (
-        <p>Keine Produkte vorhanden.</p>
+      <div style={{ marginBottom: 16 }}>
+        <input
+          type="text"
+          placeholder="Suchen... (Titel, Künstler, Kategorie, Varianten, Tags)"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{
+            width: "100%",
+            maxWidth: 600,
+            height: 40,
+            padding: "0 12px",
+            border: "1px solid rgba(128, 128, 128, 0.3)",
+            borderRadius: 4,
+            fontSize: 14,
+            outline: "none"
+          }}
+        />
+      </div>
+
+      {filteredProducts.length === 0 ? (
+        <p>{search ? "Keine Treffer." : "Keine Produkte vorhanden."}</p>
       ) : (
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
@@ -98,7 +136,7 @@ export default function ProductsPage() {
             </tr>
           </thead>
           <tbody>
-            {products.map((p) => (
+            {filteredProducts.map((p) => (
               <tr key={p.id}>
                 <td style={{ padding: "12px 8px" }}>{p.id}</td>
                 <td style={{ padding: "12px 8px" }}>
