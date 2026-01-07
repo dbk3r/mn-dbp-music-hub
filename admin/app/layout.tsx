@@ -347,7 +347,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <div className="min-h-screen bg-background text-foreground">
-          <div className="mx-auto flex min-h-screen w-full max-w-7xl">
+          <div className="mx-auto flex min-h-screen w-full">
             <aside className="w-64 border-r border-foreground/5 bg-card/30 p-6">
               <div className="mb-6 flex items-center justify-between gap-3">
                 <div className="text-lg font-semibold">DBP Admin</div>

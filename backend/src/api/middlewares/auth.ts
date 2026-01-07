@@ -5,7 +5,7 @@ import { User } from "../../models/user"
 
 const JWT_SECRET = process.env.JWT_SECRET || "supersecret"
 
-export interface AuthenticatedRequest extends MedusaRequest {
+export interface AuthenticatedRequest extends Omit<MedusaRequest, 'user'> {
   user?: User
 }
 

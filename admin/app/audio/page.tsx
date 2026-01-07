@@ -50,6 +50,29 @@ export default function AudioPage() {
     [items, selectedId]
   );
 
+  // Metadata fields for editing
+  const [editTitle, setEditTitle] = useState<string>("");
+  const [editArtist, setEditArtist] = useState<string>("");
+  const [editDescription, setEditDescription] = useState<string>("");
+  const [editReleaseYear, setEditReleaseYear] = useState<string>("");
+  const [editCategoryId, setEditCategoryId] = useState<number | null>(null);
+  const [editTagIds, setEditTagIds] = useState<number[]>([]);
+  const [editLicenseModelIds, setEditLicenseModelIds] = useState<number[]>([]);
+
+  const [isUploadFormExpanded, setIsUploadFormExpanded] = useState(false);
+
+  useEffect(() => {
+    if (selected) {
+      setEditTitle(selected.title || "");
+      setEditArtist(selected.artist || "");
+      setEditDescription(selected.description || "");
+      setEditReleaseYear(selected.release_year ? String(selected.release_year) : "");
+      setEditCategoryId(selected.category_id ?? null);
+      setEditTagIds(Array.isArray(selected.tag_ids) ? selected.tag_ids : []);
+      setEditLicenseModelIds(Array.isArray(selected.license_model_ids) ? selected.license_model_ids : []);
+    }
+  }, [selected]);
+
   const url = useMemo(() => adminApiUrl("/audio"), []);
   const categoriesUrl = useMemo(() => adminApiUrl("/categories"), []);
   const tagsUrl = useMemo(() => adminApiUrl("/tags"), []);
@@ -244,6 +267,39 @@ export default function AudioPage() {
     }
   }
 
+  async function saveMetadata() {
+    if (!selected) return;
+    setIsBusy(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem("admin_auth_token");
+      const headers = token ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
+      
+      const res = await fetch(`${url}/${selected.id}`, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({
+          title: editTitle,
+          artist: editArtist || null,
+          description: editDescription || null,
+          release_year: editReleaseYear ? Number(editReleaseYear) : null,
+          category_id: editCategoryId,
+          tag_ids: editTagIds,
+          license_model_ids: editLicenseModelIds,
+        }),
+      });
+      if (!res.ok) {
+        setError(`Speichern fehlgeschlagen (${res.status})`);
+        return;
+      }
+      setInfo("Metadaten gespeichert.");
+      await refresh();
+      setSelectedId(null);
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
   function fmtDuration(ms: number | null) {
     if (!ms || ms <= 0) return "";
     const totalSeconds = Math.round(ms / 1000);
@@ -267,8 +323,18 @@ export default function AudioPage() {
         </p>
       </div>
 
-      <div className="rounded border border-foreground/10 p-4">
-        <div className="grid gap-3 sm:grid-cols-2">
+      <div className="rounded border border-foreground/10">
+        <div 
+          onClick={() => setIsUploadFormExpanded(!isUploadFormExpanded)}
+          className="flex items-center justify-between p-4 cursor-pointer hover:bg-foreground/5"
+        >
+          <div className="font-medium">Neue Audio-Datei hochladen</div>
+          <span style={{ transform: isUploadFormExpanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 160ms ease' }}>▶</span>
+        </div>
+        
+        {isUploadFormExpanded && (
+          <div className="border-t border-foreground/10 p-4">
+            <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1">
             <div className="text-sm">Datei (mp3/wav)</div>
             <input
@@ -338,6 +404,8 @@ export default function AudioPage() {
             Upload
           </button>
         </div>
+          </div>
+        )}
       </div>
 
       {error ? (
@@ -388,38 +456,44 @@ export default function AudioPage() {
                   <td className="px-3 py-2">{a.size}</td>
                   <td className="px-3 py-2">{a.created_at}</td>
                   <td className="px-3 py-2 text-right">
-                    <button
-                      className="rounded px-3 py-1 text-sm hover:bg-foreground/5 disabled:opacity-60"
-                      onClick={() => ensureProduct(a.id)}
-                      disabled={isBusy}
-                      type="button"
-                    >
-                      Produkt anlegen
-                    </button>
-                    <button
-                      className="rounded px-3 py-1 text-sm hover:bg-foreground/5 disabled:opacity-60"
-                      onClick={() => setSelectedId(a.id)}
-                      disabled={isBusy}
-                      type="button"
-                    >
-                      Bearbeiten
-                    </button>
-                    <button
-                      className="rounded px-3 py-1 text-sm hover:bg-foreground/5 disabled:opacity-60"
-                      onClick={() => remove(a.id)}
-                      disabled={isBusy}
-                      type="button"
-                    >
-                      Löschen
-                    </button>
-                    <button
-                      className="rounded px-3 py-1 text-sm hover:bg-foreground/5 disabled:opacity-60"
-                      onClick={() => reanalyze(a.id)}
-                      disabled={isBusy}
-                      type="button"
-                    >
-                      Re-Analyse
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        className="flex h-8 w-8 items-center justify-center rounded hover:bg-foreground/5 disabled:opacity-60"
+                        onClick={() => ensureProduct(a.id)}
+                        disabled={isBusy}
+                        type="button"
+                        title="Produkt anlegen"
+                      >
+                        <span className="text-lg">➕</span>
+                      </button>
+                      <button
+                        className="flex h-8 w-8 items-center justify-center rounded hover:bg-foreground/5 disabled:opacity-60"
+                        onClick={() => setSelectedId(a.id)}
+                        disabled={isBusy}
+                        type="button"
+                        title="Bearbeiten"
+                      >
+                        <span className="text-lg">✏️</span>
+                      </button>
+                      <button
+                        className="flex h-8 w-8 items-center justify-center rounded hover:bg-foreground/5 disabled:opacity-60"
+                        onClick={() => remove(a.id)}
+                        disabled={isBusy}
+                        type="button"
+                        title="Löschen"
+                      >
+                        <span className="text-lg">🗑️</span>
+                      </button>
+                      <button
+                        className="flex h-8 w-8 items-center justify-center rounded hover:bg-foreground/5 disabled:opacity-60"
+                        onClick={() => reanalyze(a.id)}
+                        disabled={isBusy}
+                        type="button"
+                        title="Re-Analyse"
+                      >
+                        <span className="text-lg">🔄</span>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -430,98 +504,133 @@ export default function AudioPage() {
 
       {selected ? (
         <div className="rounded border border-foreground/10 p-4">
-          <div className="mb-2 text-sm font-medium">Produkt-Zuordnung: {selected.title}</div>
+          <div className="mb-4 flex items-center justify-between">
+            <div className="text-sm font-medium">Bearbeiten: {selected.title}</div>
+            <button
+              className="rounded px-3 py-1 text-sm hover:bg-foreground/5"
+              onClick={() => setSelectedId(null)}
+              type="button"
+            >
+              Schließen
+            </button>
+          </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1">
-              <div className="text-sm">Kategorie</div>
-              <select
-                className="h-10 w-full rounded border border-foreground/15 bg-background px-3 text-sm outline-none focus:border-foreground/30"
-                value={selected.category_id ?? ""}
-                onChange={(e) => {
-                  const v = e.target.value
-                  saveAssignments({
-                    category_id: v ? Number(v) : null,
-                    tag_ids: Array.isArray(selected.tag_ids) ? selected.tag_ids : [],
-                    license_model_ids: Array.isArray(selected.license_model_ids)
-                      ? selected.license_model_ids
-                      : [],
-                  })
-                }}
-                disabled={isBusy}
-              >
-                <option value="">(keine)</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <div className="text-sm">Tags</div>
-              <div className="flex flex-wrap gap-3">
-                {tags.map((t) => {
-                  const current = Array.isArray(selected.tag_ids) ? selected.tag_ids : []
-                  const checked = current.includes(t.id)
-                  return (
-                    <label key={t.id} className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={(e) => {
-                          const next = e.target.checked
-                            ? Array.from(new Set([...current, t.id]))
-                            : current.filter((id) => id !== t.id)
-                          saveAssignments({
-                            category_id: selected.category_id ?? null,
-                            tag_ids: next,
-                            license_model_ids: Array.isArray(selected.license_model_ids)
-                              ? selected.license_model_ids
-                              : [],
-                          })
-                        }}
-                        disabled={isBusy}
-                      />
-                      {t.name}
-                    </label>
-                  )
-                })}
+          {/* Combined Metadata & Product Assignment Section */}
+          <div className="space-y-3 rounded border border-foreground/10 p-3">
+            <div className="text-sm font-medium">Metadaten & Produkt-Zuordnung</div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <div className="text-sm">Titel</div>
+                <input
+                  className="h-10 w-full rounded border border-foreground/15 bg-background px-3 text-sm outline-none focus:border-foreground/30"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  placeholder="Titel"
+                />
+              </div>
+              <div className="space-y-1">
+                <div className="text-sm">Künstler</div>
+                <input
+                  className="h-10 w-full rounded border border-foreground/15 bg-background px-3 text-sm outline-none focus:border-foreground/30"
+                  value={editArtist}
+                  onChange={(e) => setEditArtist(e.target.value)}
+                  placeholder="Künstler"
+                />
+              </div>
+              <div className="space-y-1">
+                <div className="text-sm">Erscheinungsjahr</div>
+                <input
+                  type="number"
+                  min={1900}
+                  max={2100}
+                  className="h-10 w-full rounded border border-foreground/15 bg-background px-3 text-sm outline-none focus:border-foreground/30"
+                  value={editReleaseYear}
+                  onChange={(e) => setEditReleaseYear(e.target.value)}
+                  placeholder="z.B. 2024"
+                />
+              </div>
+              <div className="space-y-1">
+                <div className="text-sm">Kategorie</div>
+                <select
+                  className="h-10 w-full rounded border border-foreground/15 bg-background px-3 text-sm outline-none focus:border-foreground/30"
+                  value={editCategoryId ?? ""}
+                  onChange={(e) => setEditCategoryId(e.target.value ? Number(e.target.value) : null)}
+                  disabled={isBusy}
+                >
+                  <option value="">(keine)</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1 sm:col-span-2">
+                <div className="text-sm">Beschreibung</div>
+                <textarea
+                  className="min-h-20 w-full rounded border border-foreground/15 bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  placeholder="Beschreibung"
+                />
+              </div>
+              <div className="space-y-1 sm:col-span-2">
+                <div className="text-sm">Tags</div>
+                <div className="flex flex-wrap gap-3">
+                  {tags.map((t) => {
+                    const checked = editTagIds.includes(t.id)
+                    return (
+                      <label key={t.id} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            const next = e.target.checked
+                              ? Array.from(new Set([...editTagIds, t.id]))
+                              : editTagIds.filter((id) => id !== t.id)
+                            setEditTagIds(next)
+                          }}
+                          disabled={isBusy}
+                        />
+                        {t.name}
+                      </label>
+                    )
+                  })}
+                </div>
+              </div>
+              <div className="space-y-1 sm:col-span-2">
+                <div className="text-sm">Lizenzmodelle (Preis gebunden)</div>
+                <div className="flex flex-wrap gap-3">
+                  {licenses.map((l) => {
+                    const checked = editLicenseModelIds.includes(l.id)
+                    return (
+                      <label key={l.id} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            const next = e.target.checked
+                              ? Array.from(new Set([...editLicenseModelIds, l.id]))
+                              : editLicenseModelIds.filter((id) => id !== l.id)
+                            setEditLicenseModelIds(next)
+                          }}
+                          disabled={isBusy}
+                        />
+                        {l.name} ({(l.priceCents / 100).toFixed(2)} €)
+                      </label>
+                    )
+                  })}
+                </div>
               </div>
             </div>
-
-            <div className="space-y-1 sm:col-span-2">
-              <div className="text-sm">Lizenzmodelle (Preis gebunden)</div>
-              <div className="flex flex-wrap gap-3">
-                {licenses.map((l) => {
-                  const current = Array.isArray(selected.license_model_ids)
-                    ? selected.license_model_ids
-                    : []
-                  const checked = current.includes(l.id)
-                  return (
-                    <label key={l.id} className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={(e) => {
-                          const next = e.target.checked
-                            ? Array.from(new Set([...current, l.id]))
-                            : current.filter((id) => id !== l.id)
-                          saveAssignments({
-                            category_id: selected.category_id ?? null,
-                            tag_ids: Array.isArray(selected.tag_ids) ? selected.tag_ids : [],
-                            license_model_ids: next,
-                          })
-                        }}
-                        disabled={isBusy}
-                      />
-                      {l.name} ({(l.priceCents / 100).toFixed(2)} €)
-                    </label>
-                  )
-                })}
-              </div>
-            </div>
+            <button
+              className="h-10 rounded bg-foreground px-4 text-sm font-medium text-background disabled:opacity-60"
+              onClick={saveMetadata}
+              disabled={isBusy || !editTitle.trim()}
+              type="button"
+            >
+              Speichern
+            </button>
           </div>
         </div>
       ) : null}
