@@ -34,12 +34,11 @@ export default function HeaderMenu({ right }: HeaderMenuProps) {
           ))}
         </ul>
       </nav>
-      {right !== null && right !== undefined ? right : (
-        <>
-          <UserAvatar onClick={() => setShowUserMenu(!showUserMenu)} />
-          {showUserMenu && <UserMenu onClose={() => setShowUserMenu(false)} />}
-        </>
-      )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        {right}
+        <UserAvatar onClick={() => setShowUserMenu(!showUserMenu)} />
+        {showUserMenu && <UserMenu onClose={() => setShowUserMenu(false)} />}
+      </div>
     </header>
   )
 }

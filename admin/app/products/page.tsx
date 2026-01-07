@@ -33,6 +33,10 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    loadProducts()
+  }, [])
+
+  function loadProducts() {
     const token = localStorage.getItem('admin_auth_token')
     const headers = token ? { Authorization: `Bearer ${token}` } : {}
 
@@ -40,7 +44,29 @@ export default function ProductsPage() {
       .then((r) => r.json())
       .then((data) => setProducts(Array.isArray(data.items) ? data.items : []))
       .finally(() => setLoading(false))
-  }, [])
+  }
+
+  async function deleteProduct(id: number, title: string) {
+    if (!confirm(`Produkt "${title}" wirklich löschen?`)) return
+
+    const token = localStorage.getItem('admin_auth_token')
+    const headers = token ? { Authorization: `Bearer ${token}` } : {}
+
+    try {
+      const response = await fetch(adminApiUrl(`/products/${id}`), {
+        method: 'DELETE',
+        headers
+      })
+
+      if (response.ok) {
+        setProducts(products.filter(p => p.id !== id))
+      } else {
+        alert('Löschen fehlgeschlagen')
+      }
+    } catch (err) {
+      alert('Fehler beim Löschen: ' + String(err))
+    }
+  }
 
   function formatPrice(cents: number) {
     return (cents / 100).toFixed(2)
@@ -104,6 +130,12 @@ export default function ProductsPage() {
                   <Link href={`/products/${p.id}`}>
                     <button style={{ marginRight: 8 }}>Bearbeiten</button>
                   </Link>
+                  <button 
+                    onClick={() => deleteProduct(p.id, p.title)}
+                    style={{ background: '#dc3545', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 4, cursor: 'pointer' }}
+                  >
+                    Löschen
+                  </button>
                 </td>
               </tr>
             ))}

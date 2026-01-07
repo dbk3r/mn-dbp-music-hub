@@ -258,12 +258,16 @@ export default function MainPage() {
   return (
     <div>
       <HeaderMenu
-        right={cart.length > 0 ? (
-          <CartIcon
-            count={cart.length}
-            onClick={() => setCartOpen((v) => !v)}
-          />
-        ) : null}
+        right={
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            {cart.length > 0 && (
+              <CartIcon
+                count={cart.length}
+                onClick={() => setCartOpen((v) => !v)}
+              />
+            )}
+          </div>
+        }
       />
       <SearchBar onSearch={handleSearch} />
       <div style={{ maxWidth: "100%", width: "100%", margin: "2em auto 0", paddingLeft: 24, paddingRight: 24, paddingBottom: selected ? 220 : 24, boxSizing: "border-box" }}>

@@ -40,9 +40,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const id = params.id
+    const { id } = await params
     const headers = buildHeadersFromReq(req)
     const r = await fetch(`${BACKEND_URL}/custom/admin/products/${id}`, {
       method: "DELETE",
