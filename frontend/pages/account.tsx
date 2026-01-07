@@ -30,16 +30,20 @@ export default function AccountPage() {
         if (pk) headers["x-publishable-api-key"] = pk
 
         let r = await fetch("/api/store/orders", { headers })
+        console.log(`[account] /api/store/orders response: ${r.status}`)
 
         // If store endpoint rejects with 401, try admin fallback
         if (r.status === 401) {
+          console.log('[account] Fallback to /api/admin/orders')
           r = await fetch("/api/admin/orders", { headers })
+          console.log(`[account] /api/admin/orders response: ${r.status}`)
         }
 
         const contentType = r.headers.get("content-type") || ""
         if (contentType.includes("application/json")) {
           const data = await r.json()
           if (!mounted) return
+          console.log('[account] Orders data:', JSON.stringify(data, null, 2))
           if (Array.isArray(data)) setOrders(data)
           else if (data && data.orders) setOrders(data.orders)
           else setOrders([])

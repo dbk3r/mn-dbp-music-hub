@@ -14,7 +14,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const pk = req.headers["x-publishable-api-key"] || process.env.NEXT_PUBLIC_API_KEY || req.cookies?.["x-publishable-api-key"]
     if (pk) forwardHeaders["x-publishable-api-key"] = String(pk)
 
-    const r = await fetch(`${BACKEND_URL}/store/orders`, {
+    const r = await fetch(`${BACKEND_URL}/custom/store-orders`, {
       method: "GET",
       headers: forwardHeaders,
     })
