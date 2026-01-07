@@ -67,39 +67,39 @@ export default function AccountPage() {
   return (
     <div>
       <HeaderMenu />
-      <main style={{ maxWidth: 980, margin: "32px auto", padding: "0 16px" }}>
-        <h1 style={{ marginBottom: 16 }}>Meine Bestellungen</h1>
+      <main className="orders-container">
+        <h1 className="orders-title">Meine Bestellungen</h1>
 
-        {loading && <div>Lädt...</div>}
-        {error && <div style={{ color: "#d00" }}>{error}</div>}
+        {loading && <div className="orders-loading">Lädt...</div>}
+        {error && <div className="orders-error">{error}</div>}
 
-        {!loading && !error && orders && orders.length === 0 && <div>Keine Bestellungen gefunden.</div>}
+        {!loading && !error && orders && orders.length === 0 && <div className="orders-empty">Keine Bestellungen gefunden.</div>}
 
         {!loading && orders && orders.length > 0 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div className="orders-list">
             {orders.map((o: Order) => (
-              <article key={o.id || o.order_id} style={{ border: "1px solid #eee", borderRadius: 8, padding: 12, background: "#fff" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                  <div style={{ fontWeight: 700 }}>Bestellung #{o.id || o.order_id}</div>
-                  <div style={{ color: "#666" }}>{new Date(o.created_at || o.created || Date.now()).toLocaleString()}</div>
+              <article key={o.id || o.order_id} className="order-card">
+                <div className="order-header">
+                  <div className="order-id">Bestellung #{o.id || o.order_id}</div>
+                  <div className="order-date">{new Date(o.created_at || o.created || Date.now()).toLocaleString()}</div>
                 </div>
-                <div style={{ marginBottom: 8 }}>{o.status || "-"} — {o.total ? `${o.total} ${o.currency_code || "EUR"}` : "-"}</div>
-                <div>
+                <div className="order-summary">{o.status || "-"} — {o.total ? `${o.total} ${o.currency_code || "EUR"}` : "-"}</div>
+                <div className="order-items">
                   {(o.items || o.order_items || []).map((it: any, i: number) => (
-                    <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: 8, borderTop: i === 0 ? undefined : "1px solid #f5f5f5" }}>
-                      <div>
-                        <div style={{ fontWeight: 600 }}>{it.title || it.name || it.product_title || "Produkt"}</div>
-                        <div style={{ fontSize: 13, color: "#444" }}>{it.unit_price ? `${it.unit_price} ${o.currency_code || "EUR"}` : ""}</div>
+                    <div key={i} className="order-item">
+                      <div className="order-item-info">
+                        <div className="order-item-title">{it.title || it.name || it.product_title || "Produkt"}</div>
+                        <div className="order-item-price">{it.unit_price ? `${it.unit_price} ${o.currency_code || "EUR"}` : ""}</div>
                       </div>
-                      <div style={{ textAlign: "right" }}>
+                      <div className="order-item-downloads">
                         {it.variant && it.variant.files && it.variant.files.length > 0 ? (
                           it.variant.files.map((f: any) => (
-                            <a key={f.id || f.filename} href={f.download_url || f.url || f.path} target="_blank" rel="noreferrer" style={{ display: "inline-block", padding: "6px 10px", background: "#0070f3", color: "#fff", borderRadius: 6, textDecoration: "none", fontSize: 13, marginLeft: 8 }}>
+                            <a key={f.id || f.filename} href={f.download_url || f.url || f.path} target="_blank" rel="noreferrer" className="order-download-btn">
                               {f.original_name || f.filename || "Herunterladen"}
                             </a>
                           ))
                         ) : (
-                          <div style={{ fontSize: 13, color: "#999" }}>Keine Downloads</div>
+                          <div className="order-no-downloads">Keine Downloads</div>
                         )}
                       </div>
                     </div>
