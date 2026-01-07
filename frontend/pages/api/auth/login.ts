@@ -13,7 +13,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       "Content-Type": "application/json",
     }
     if (req.headers.cookie) forwardHeaders.cookie = String(req.headers.cookie)
-    const pk = req.headers["x-publishable-api-key"] || req.headers["X-Publishable-Api-Key"]
+    const pk = req.headers["x-publishable-api-key"] || req.headers["X-Publishable-Api-Key"] || process.env.NEXT_PUBLIC_API_KEY || (req.cookies && req.cookies["x-publishable-api-key"])
     if (pk) forwardHeaders["x-publishable-api-key"] = String(pk)
 
     // Detect admin-origin requests (admin UI runs separately, commonly on :7000)
@@ -38,46 +38,43 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     let lastError: any = null
     for (const endpoint of endpoints) {
       try {
+        console.log('[store-api] auth trying', endpoint, 'incoming content-type', req.headers['content-type'], 'req.body type', typeof req.body)
+
+        // Ensure we send a valid JSON body to backend. If the incoming body is a string but not valid JSON, reject early.
+        let bodyToSend: string
+        if (typeof req.body === 'string') {
+          try {
+            // if it's already a JSON string, keep it; otherwise attempt to parse and re-stringify
+            JSON.parse(req.body)
+            bodyToSend = req.body
+          } catch (e) {
+            // try to parse a common form-encoded format like email=...&password=...
+            try {
+              const params = new URLSearchParams(req.body)
+              const obj: any = {}
+              for (const [k, v] of params.entries()) obj[k] = v
+              bodyToSend = JSON.stringify(obj)
+              console.log('[store-api] transformed form-encoded body to JSON', obj)
+            } catch (e2) {
+              console.log('[store-api] invalid incoming body; rejecting', req.body)
+              return res.status(400).json({ message: 'invalid_request_body' })
+            }
+          }
+        } else {
+          bodyToSend = JSON.stringify(req.body || {})
+        }
+
         const r = await fetch(endpoint, {
           method: "POST",
           headers: forwardHeaders,
-          body: JSON.stringify(req.body),
+          body: bodyToSend,
         })
+        console.log('[store-api] auth response', { endpoint, status: r.status, contentType: r.headers.get("content-type") })
         // If backend doesn't know this route, try admin endpoints as a fallback
         if (r.status === 404) {
-          // try admin endpoints explicitly
-          const adminEndpoints = [
-            `${BACKEND_URL}/custom/admin/auth/login`,
-            `${BACKEND_URL}/admin/auth/login`,
-          ]
-          for (const aep of adminEndpoints) {
-            try {
-              const ar = await fetch(aep, {
-                method: "POST",
-                headers: forwardHeaders,
-                body: JSON.stringify(req.body),
-              })
-              const aContentType = ar.headers.get("content-type") || ""
-              if (aContentType.includes("application/json")) {
-                const data = await ar.json()
-                // trigger PIN send if needed
-                try {
-                  if (data && data.mfa_required && data.user && data.user.id) {
-                    await fetch(`${BACKEND_URL}/custom/admin/mfa/email/start`, {
-                      method: "POST",
-                      headers: forwardHeaders,
-                      body: JSON.stringify({ user_id: data.user.id }),
-                    }).catch(() => {})
-                  }
-                } catch (e) {}
-                return res.status(ar.status).json(data)
-              }
-              const text = await ar.text()
-              return res.status(ar.status).send(text)
-            } catch (e) {
-              // ignore and try next admin endpoint
-            }
-          }
+          // If backend doesn't know this route, move on to the next candidate endpoint.
+          // Previously we tried admin endpoints here which caused store logins to
+          // fall back to admin login and produce "insufficient permissions".
           continue
         }
 

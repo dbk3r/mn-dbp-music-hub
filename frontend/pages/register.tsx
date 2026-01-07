@@ -1,6 +1,8 @@
 import { useState } from "react"
+import { useRouter } from "next/router"
 
 export default function RegisterPage() {
+  const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [passwordConfirm, setPasswordConfirm] = useState("")
@@ -29,15 +31,40 @@ export default function RegisterPage() {
       return
     }
     try {
+      console.log('[store/register] submit', { email, pw_len: String(password).length })
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, password_confirm: passwordConfirm }),
       })
-      const data = await res.json().catch(() => null)
+      const text = await res.text().catch(() => '')
+      let data: any = null
+      try { data = text ? JSON.parse(text) : null } catch { data = { raw: text } }
+      console.log('[store/register] response', { status: res.status, body: data })
       if (!res.ok) {
         setMessage((data && data.message) || `Fehler: ${res.status}`)
       } else {
+        // If backend returned a token, store it and attempt to fetch user info
+        if (data && data.token) {
+          try {
+            localStorage.setItem('user_token', data.token)
+            if (data.user) {
+              localStorage.setItem('user_data', JSON.stringify(data.user))
+            } else {
+              // try to fetch /api/user/me
+              const me = await fetch('/api/user/me', { headers: { Authorization: `Bearer ${data.token}` } })
+              if (me.ok) {
+                const userData = await me.json().catch(() => null)
+                if (userData) localStorage.setItem('user_data', JSON.stringify(userData))
+              }
+            }
+            router.push('/')
+            return
+          } catch (e) {
+            console.warn('auto-login failed', e)
+          }
+        }
+
         setMessage("Registrierung erfolgreich. Bitte prüfen Sie Ihre E-Mails oder melden Sie sich an.")
       }
     } catch (err: any) {

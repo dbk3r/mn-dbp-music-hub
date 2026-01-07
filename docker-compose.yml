@@ -29,13 +29,7 @@ services:
       ADMIN_CORS: http://localhost:5173,http://localhost:9000
       AUTH_CORS: http://localhost:5173,http://localhost:9000,http://localhost:8000
       PGSSLMODE: disable
-      AUDIO_UPLOAD_DIR: /app/uploads
-      SMTP_HOST: web250.dogado.net
-      SMTP_PORT: "465"
-      SMTP_SECURE: "true"
-      SMTP_USER: info@dbp-music.de
-      SMTP_PASS: Nulleins01b#=
-      BACKEND_SERVICE_TOKEN: dev-backend-service-token-please-change
+      AUDIO_UPLOAD_DIR: /app/uploads      
       ADMIN_EMAIL: bk.pc@gmx.de
       ADMIN_PASSWORD: nulleins
     env_file:

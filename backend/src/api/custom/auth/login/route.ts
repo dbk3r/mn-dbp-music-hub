@@ -1,4 +1,3 @@
-// This file intentionally left blank — route handled by express router
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import crypto from "crypto"
 import bcrypt from "bcrypt"
@@ -15,11 +14,9 @@ export async function OPTIONS(req: MedusaRequest, res: MedusaResponse) {
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
 	res.header("Access-Control-Allow-Origin", "*")
-
 	res.header("Access-Control-Allow-Methods", "POST, OPTIONS")
 	res.header("Access-Control-Allow-Headers", "Content-Type, x-publishable-api-key, Authorization")
 
-	// Ensure request is JSON
 	const contentType = String(req.headers['content-type'] || '')
 	if (!contentType.includes('application/json')) {
 		if (!res.headersSent) return res.status(400).json({ error: 'invalid_content_type', detail: contentType })
@@ -42,7 +39,6 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 			}
 		}
 		if (!customerService) {
-			// fall back to local service implementation if needed
 			customerService = new CustomerService()
 		}
 
@@ -55,13 +51,11 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 			return
 		}
 
-		// If MFA is enabled for this user, start MFA flow (send PIN + temp token)
 		if (customer.mfaEnabled) {
 			const pin = crypto.randomInt(100000, 999999).toString()
 			const expiresAt = new Date(Date.now() + 5 * 60 * 1000)
 			const hashedPin = await bcrypt.hash(pin, 10)
 
-			// store both legacy twofa fields (for store routes) and the newer mfa fields
 			await customerService.update(customer.id, {
 				twofa_pin: pin,
 				twofa_expires: Date.now() + 5 * 60 * 1000,
@@ -82,7 +76,6 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 			return
 		}
 
-		// No MFA — issue final token
 		const token = jwt.sign({
 			userId: customer.id,
 			email: customer.email,
@@ -94,10 +87,9 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 		}
 		return
 	} catch (err: any) {
-		console.error("store auth init error", err)
+		console.error("custom auth login error", err)
 		if (!res.headersSent) {
 			return res.status(500).json({ error: "internal_error" })
 		}
-		return
 	}
 }

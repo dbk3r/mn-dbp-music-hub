@@ -33,6 +33,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
   const { email, password, first_name, last_name } = body as any
 
+  try {
+    console.log('/custom/auth/register called for', { email })
+  } catch (e) {}
+
   const password_confirm = (body as any).password_confirm || (body as any).passwordConfirm
 
   if (!email || !password) {

@@ -63,6 +63,8 @@ export default class CustomerService {
     // map possible fields used by existing routes
     if (updates.twofa_pin !== undefined) user.twofa_pin = updates.twofa_pin
     if (updates.twofa_expires !== undefined) user.twofa_expires = updates.twofa_expires
+    if (updates.mfaPinHash !== undefined) user.mfaPinHash = updates.mfaPinHash
+    if (updates.mfaPinExpiresAt !== undefined) user.mfaPinExpiresAt = updates.mfaPinExpiresAt
     if (updates.password !== undefined) user.passwordHash = await bcrypt.hash(updates.password, 10)
     if (updates.displayName !== undefined) user.displayName = updates.displayName
     if (updates.isActive !== undefined) user.isActive = updates.isActive

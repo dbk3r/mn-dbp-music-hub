@@ -160,6 +160,14 @@ export default function LoginPage() {
               {loading ? "Anmelden..." : "Anmelden"}
             </button>
           </form>
+          <div style={{ textAlign: 'center', marginTop: 12 }}>
+            <small style={{ color: '#6b7280' }}>
+              Noch keinen Account?{' '}
+              <a href="/register" style={{ color: '#1e3a8a', fontWeight: 600 }}>
+                Registrieren
+              </a>
+            </small>
+          </div>
         </div>
       </div>
     </>
