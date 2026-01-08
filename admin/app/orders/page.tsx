@@ -5,6 +5,7 @@ import { adminApiUrl } from "../_lib/api"
 
 type Order = {
   id: string
+  order_id?: string
   customer_name?: string
   status?: string
   totalPriceCents?: number
@@ -12,6 +13,7 @@ type Order = {
   customer_email?: string
   product_titles?: string[] | string
   created_at?: string
+  items?: any[]
 }
 
 export default function OrdersPage() {
@@ -38,6 +40,8 @@ export default function OrdersPage() {
         throw new Error(`Fehler: ${r.status} ${txt}`)
       }
       const data = await r.json()
+      console.log('[Orders] Response data:', data)
+      console.log('[Orders] First order items:', data[0]?.items)
       // Expect an array or object with items
       const list: Order[] = Array.isArray(data) ? data : data.items ?? data.orders ?? []
       setOrders(list)
@@ -64,6 +68,25 @@ export default function OrdersPage() {
       await load()
     } catch (e: any) {
       alert("Löschen fehlgeschlagen: " + (e.message || String(e)))
+    }
+  }
+
+  async function resendEmail(orderId: string) {
+    if (!confirm("Bestellbestätigung erneut per E-Mail versenden?")) return
+    try {
+      const token = typeof window !== "undefined" ? localStorage.getItem("admin_auth_token") : null
+      const r = await fetch(`/dbp-backend/custom/admin/resend-order-email/${orderId}`, {
+        method: "POST",
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      })
+      if (!r.ok) {
+        const txt = await r.text()
+        throw new Error(txt || `Status ${r.status}`)
+      }
+      const result = await r.json()
+      alert(result.message || "E-Mail erfolgreich versendet")
+    } catch (e: any) {
+      alert("E-Mail-Versand fehlgeschlagen: " + (e.message || String(e)))
     }
   }
 
@@ -119,6 +142,7 @@ export default function OrdersPage() {
           <thead>
             <tr>
               <th style={{ textAlign: "left", padding: 8 }}>ID</th>
+              <th style={{ textAlign: "left", padding: 8 }}>Lizenz-Nr.</th>
               <th style={{ textAlign: "left", padding: 8 }}>Käufer</th>
               <th style={{ textAlign: "left", padding: 8 }}>E-Mail</th>
               <th style={{ textAlign: "left", padding: 8 }}>Produkt(e)</th>
@@ -132,16 +156,53 @@ export default function OrdersPage() {
             {filteredOrders.map((o) => (
               <tr key={o.id} style={{ borderTop: "1px solid #eee" }}>
                 <td style={{ padding: 8, verticalAlign: "top" }}>{o.id}</td>
+                <td style={{ padding: 8, verticalAlign: "top" }}>
+                  {(o as any).license_number ? (
+                    <a 
+                      href={`/dbp-backend/custom/verify-license/${(o as any).license_number}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: "#0a84ff", textDecoration: "none", fontSize: 12 }}
+                    >
+                      {(o as any).license_number}
+                    </a>
+                  ) : "-"}
+                </td>
                 <td style={{ padding: 8, verticalAlign: "top" }}>{o.customer_name ?? "-"}</td>
                 <td style={{ padding: 8, verticalAlign: "top" }}>{o.customer_email ?? "-"}</td>
                 <td style={{ padding: 8, verticalAlign: "top" }}>
-                  {Array.isArray(o.product_titles) && o.product_titles.length > 0 ? (
+                  {Array.isArray((o as any).items) && (o as any).items.length > 0 ? (
+                    (o as any).items.map((it: any, i: number) => (
+                      <div key={i} style={{ marginBottom: 12 }}>
+                        <div style={{ fontWeight: 500 }}>{it.title || it.name || "-"}</div>
+                        {it.variant && (
+                          <div style={{ marginLeft: 12, marginTop: 4 }}>
+                            <div style={{ fontSize: 13, color: "#666" }}>
+                              📄 {it.variant.license_model_name}
+                            </div>
+                            {it.variant.files && it.variant.files.length > 0 && (
+                              <div style={{ marginTop: 4, fontSize: 12 }}>
+                                {it.variant.files.map((file: any, fi: number) => (
+                                  <div key={fi} style={{ marginTop: 2 }}>
+                                    <a 
+                                      href={`/dbp-backend/custom/uploads/variants/${file.filename}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{ color: "#0a84ff", textDecoration: "none" }}
+                                    >
+                                      📎 {file.originalName || file.filename}
+                                    </a>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  ) : Array.isArray(o.product_titles) && o.product_titles.length > 0 ? (
                     o.product_titles.map((pt: string, i: number) => (
                       <div key={i} style={{ marginBottom: 4 }}>{pt}</div>
-                    ))
-                  ) : Array.isArray((o as any).items) && (o as any).items.length > 0 ? (
-                    (o as any).items.map((it: any, i: number) => (
-                      <div key={i} style={{ marginBottom: 4 }}>{it.title ? `${it.title}${it.license_model_name ? ` (${it.license_model_name})` : ""}` : it.name || ""}</div>
                     ))
                   ) : (
                     <div>-</div>
@@ -155,6 +216,11 @@ export default function OrdersPage() {
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z" fill="#0a84ff" />
                       <path d="M20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z" fill="#0a84ff" />
+                    </svg>
+                  </span>
+                  <span onClick={() => resendEmail(o.order_id || o.id)} title="E-Mail erneut senden" style={{ cursor: "pointer", marginRight: 8, display: "inline-block", width: 20, height: 20 }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" fill="#0a84ff" />
                     </svg>
                   </span>
                   <span onClick={() => deleteOrder(o.id)} title="Löschen" style={{ cursor: "pointer", display: "inline-block", width: 20, height: 20 }}>

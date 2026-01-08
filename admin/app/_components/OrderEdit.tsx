@@ -26,6 +26,7 @@ export default function OrderEdit({ order, onClose, onSaved }: Props) {
   }
 
   const [items, setItems] = useState<any[]>(parseItems())
+  const [generatingPdf, setGeneratingPdf] = useState(false)
 
   function updateItem(idx: number, key: string, val: any) {
     const copy = items.slice()
@@ -100,6 +101,36 @@ export default function OrderEdit({ order, onClose, onSaved }: Props) {
     }
   }
 
+  async function generatePdf() {
+    const token = typeof window !== "undefined" ? localStorage.getItem("admin_auth_token") : null
+    if (!token) return
+
+    setGeneratingPdf(true)
+    setError(null)
+
+    try {
+      // Backend route via HAProxy
+      const res = await fetch(`/dbp-backend/custom/admin/orders/${order.order_id}/generate-pdf`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` }
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.message || "PDF-Generierung fehlgeschlagen")
+      }
+
+      const data = await res.json()
+      alert(`PDFs generiert!\n${data.results.filter((r: any) => r.success).length} erfolgreich, ${data.results.filter((r: any) => !r.success).length} fehlgeschlagen`)
+      onSaved() // Reload to show new files
+    } catch (err) {
+      setError(String(err))
+      alert("Fehler: " + String(err))
+    } finally {
+      setGeneratingPdf(false)
+    }
+  }
+
   return (
     <div style={{ position: "fixed", left: 0, top: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}>
       <div style={{ background: "white", padding: 20, width: 760, maxHeight: "90vh", overflow: "auto", borderRadius: 6 }}>
@@ -165,9 +196,18 @@ export default function OrderEdit({ order, onClose, onSaved }: Props) {
           <div style={{ marginTop: 8, color: "#444" }}>Berechnetes Total: {(derivedTotalCents/100).toFixed(2)} {currency}</div>
         </div>
 
-        <div style={{ marginTop: 14, display: "flex", gap: 8, justifyContent: "flex-end" }}>
-          <button onClick={onClose} disabled={saving}>Abbrechen</button>
-          <button onClick={save} style={{ background: "#0a84ff", color: "white" }} disabled={saving}>{saving ? "Speichert..." : "Speichern"}</button>
+        <div style={{ marginTop: 14, display: "flex", gap: 8, justifyContent: "space-between" }}>
+          <button 
+            onClick={generatePdf} 
+            disabled={generatingPdf || !order.order_id}
+            style={{ background: "#28a745", color: "white" }}
+          >
+            {generatingPdf ? "Generiert PDFs..." : "📄 Lizenz-PDFs generieren"}
+          </button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={onClose} disabled={saving}>Abbrechen</button>
+            <button onClick={save} style={{ background: "#0a84ff", color: "white" }} disabled={saving}>{saving ? "Speichert..." : "Speichern"}</button>
+          </div>
         </div>
       </div>
     </div>

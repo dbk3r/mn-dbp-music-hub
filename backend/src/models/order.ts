@@ -16,6 +16,9 @@ export class Order {
   @Column({ name: 'order_id', type: 'varchar', nullable: true })
   orderId: string | null
 
+  @Column({ name: 'license_number', type: 'varchar', length: 50, unique: true, nullable: true })
+  licenseNumber: string | null
+
   @Column({ type: "varchar" })
   customerId: string
 

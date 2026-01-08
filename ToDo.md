@@ -1,4 +1,6 @@
-- migration produkte - Variant / Lizenzmodelle von Produkte -> Audio-Dateien
+- migration produkte - Variant / Lizenzmodelle von Produkte -> Audio-Dateien - OK
 - Lizenz-PDF erstellen
+- anzeige der lizenzen und downloads bei Bestellungen
 - stripe config
-. paypal config
+- paypal config
+- Lizenzschlüssel

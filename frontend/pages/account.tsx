@@ -85,6 +85,11 @@ export default function AccountPage() {
               <article key={o.id || o.order_id} className="order-card">
                 <div className="order-header">
                   <div className="order-id">Bestellung #{o.id || o.order_id}</div>
+                  {o.license_number && (
+                    <div className="order-license" style={{ fontSize: 13, color: "#666" }}>
+                      🔒 {o.license_number}
+                    </div>
+                  )}
                   <div className="order-date">{new Date(o.created_at || o.created || Date.now()).toLocaleString()}</div>
                 </div>
                 <div className="order-summary">

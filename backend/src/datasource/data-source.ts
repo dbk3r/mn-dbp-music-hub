@@ -5,6 +5,8 @@ import { Customer } from "../models/customer"
 import { Category } from "../models/category"
 import { Tag } from "../models/tag"
 import { LicenseModel } from "../models/license-model"
+import { LicenseTemplate } from "../models/license-template"
+import { EmailTemplate } from "../models/email-template"
 import { AudioFile } from "../models/audio-file"
 import { AudioVariant } from "../models/audio-variant"
 import { AudioVariantFile } from "../models/audio-variant-file"
@@ -19,7 +21,7 @@ dotenv.config({ path: process.cwd() + "/.env" })
 export const AppDataSource = new DataSource({
   type: "postgres",
   url: process.env.DATABASE_URL,
-  entities: [Customer, Category, Tag, LicenseModel, AudioFile, AudioVariant, AudioVariantFile, User, Role, Permission, Order, SystemSetting],
+  entities: [Customer, Category, Tag, LicenseModel, LicenseTemplate, EmailTemplate, AudioFile, AudioVariant, AudioVariantFile, User, Role, Permission, Order, SystemSetting],
   migrations: [path.join(__dirname, "..", "migrations", "*.{ts,js}")],
   synchronize: false,
 })

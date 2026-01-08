@@ -1,6 +1,9 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { AppDataSource } from "../../../../datasource/data-source"
 import { Order } from "../../../../models/order"
+import { AudioVariant } from "../../../../models/audio-variant"
+import { AudioVariantFile } from "../../../../models/audio-variant-file"
+import { LicenseModel } from "../../../../models/license-model"
 import jwt from "jsonwebtoken"
 import { requireAdmin } from "../../../middlewares/auth"
 
@@ -61,38 +64,120 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     // purchased product titles. Use raw SQL for a stable shape that works
     // independently of TypeORM mapping issues.
     const rows: any[] = await AppDataSource.query(`
-      SELECT o.id, o.order_id, o.status, o."totalPriceCents", o."currencyCode", o.items, o."createdAt",
+      SELECT o.id, o.order_id, o.license_number, o.status, o."totalPriceCents", o."currencyCode", o.items, o."createdAt",
              c.email as customer_email, c.first_name as customer_first_name, c.last_name as customer_last_name
       FROM orders o
       LEFT JOIN customer c ON c.id::text = o."customerId"::text
       ORDER BY o."createdAt" DESC
     `)
 
-    const finalOrders = (rows || []).map((r: any) => {
+    const audioVariantRepo = AppDataSource.getRepository(AudioVariant)
+    const audioVariantFileRepo = AppDataSource.getRepository(AudioVariantFile)
+    const licenseModelRepo = AppDataSource.getRepository(LicenseModel)
+
+    const finalOrders = await Promise.all((rows || []).map(async (r: any) => {
       let items = r.items
       try {
         if (typeof items === 'string' && items.trim()) items = JSON.parse(items)
       } catch (e) {
         items = []
       }
-      const productTitles = Array.isArray(items) ? items.map((it: any) => it.title).filter(Boolean) : []
+
+      console.log(`[Orders] Processing order ${r.order_id}, items:`, items)
+
+      // Enrich items with variant and file data
+      const enrichedItems = await Promise.all(
+        (Array.isArray(items) ? items : []).map(async (item: any) => {
+          const audioFileId = item.audio_file_id || item.audio_id
+          const licenseModelId = item.license_model_id
+
+          if (!audioFileId || !licenseModelId) {
+            console.log('[Orders] Skipping item - missing IDs:', { audioFileId, licenseModelId, item })
+            return item
+          }
+
+          console.log(`[Orders] Looking for variant: audioFileId=${audioFileId}, licenseModelId=${licenseModelId}`)
+
+          // Find the audio variant
+          const variant = await audioVariantRepo.findOne({
+            where: {
+              audioFileId,
+              licenseModelId,
+            },
+          })
+
+          if (!variant) {
+            console.log('[Orders] No variant found for:', { audioFileId, licenseModelId })
+            return item
+          }
+
+          // Get license model name
+          const licenseModel = await licenseModelRepo.findOne({
+            where: { id: licenseModelId },
+          })
+
+          // Get variant files
+          const files = await audioVariantFileRepo.find({
+            where: { audioVariantId: variant.id },
+            order: { createdAt: "ASC" },
+          })
+
+          console.log('[Orders] Enriched item:', { 
+            audioFileId, 
+            licenseModelId, 
+            variantId: variant.id,
+            variantName: variant.name,
+            filesCount: files.length,
+            fileNames: files.map(f => f.filename)
+          })
+
+          return {
+            ...item,
+            variant: {
+              id: variant.id,
+              name: variant.name,
+              license_model_name: licenseModel?.name || "Unknown License",
+              files: files
+                .filter(file => {
+                  // Include non-PDF files
+                  if (!file.filename.endsWith('.pdf')) return true
+                  // For PDFs, only include if they match this order
+                  return file.filename.includes(`license-${r.order_id}-`)
+                })
+                .map((file) => ({
+                  id: file.id,
+                  filename: file.filename,
+                  originalName: file.originalName,
+                  mimeType: file.mimeType,
+                  size: file.size,
+                  createdAt: file.createdAt,
+                })),
+            },
+          }
+        })
+      )
+
+      const productTitles = enrichedItems.map((it: any) => it.title).filter(Boolean)
       return {
         id: r.order_id || (`order_${r.id}`),
         numeric_id: r.id,
+        license_number: r.license_number || null,
         status: (r.status || '').toUpperCase(),
         totalPriceCents: r.totalPriceCents || 0,
         currencyCode: r.currencyCode || 'EUR',
         customer_email: r.customer_email || null,
         customer_name: [r.customer_first_name, r.customer_last_name].filter(Boolean).join(' ') || null,
         createdAt: r.createdAt,
-        items: items || [],
+        items: enrichedItems,
         product_titles: productTitles,
       }
-    })
+    }))
 
     // Map to admin-friendly shape including buyer name/email and product titles
     const out = (finalOrders || []).map((o: any) => ({
       id: `order_${o.id}`,
+      order_id: o.id,
+      license_number: o.license_number,
       status: (o.status && typeof o.status === 'string') ? o.status.toUpperCase() : null,
       totalPriceCents: o.totalPriceCents || o.totalpricecents || 0,
       currency: o.currencyCode || o.currencycode || 'EUR',

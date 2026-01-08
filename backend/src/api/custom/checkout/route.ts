@@ -7,6 +7,8 @@ import { In } from "typeorm"
 import { AudioFile } from "../../../models/audio-file"
 import { LicenseModel } from "../../../models/license-model"
 import { Order, OrderStatus } from "../../../models/order"
+import { LicensePDFService } from "../../../services/license-pdf.service"
+import { EmailService } from "../../../services/email.service"
 import { setStoreCors } from "../audio/_cors"
 
 async function readJsonBody(req: MedusaRequest): Promise<{ raw: string; parsed: any } | null> {
@@ -295,20 +297,70 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const yyyy = String(now.getFullYear())
   const orderId = `${dd}${mm}${yyyy}_${seqVal}`
 
+  // Generate unique license number
+  const licenseNumber = `LIC-${yyyy}${mm}${dd}-${seqVal.toString().padStart(5, '0')}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+
   // Orders mit 0€ bekommen sofort status "completed"
   const orderStatus = totalPriceCents === 0 ? OrderStatus.PAID : OrderStatus.PENDING
 
   // Insert order via raw SQL to include generated order_id (avoid schema migration step)
   try {
     const insertRes: any = await AppDataSource.query(
-      `INSERT INTO orders ("customerId", status, "totalPriceCents", "currencyCode", items, "createdAt", "updatedAt", order_id)
-       VALUES ($1, $2, $3, $4, $5, now(), now(), $6)
-       RETURNING id, order_id`,
-      [customerId, orderStatus, totalPriceCents, 'EUR', JSON.stringify(detailed), orderId]
+      `INSERT INTO orders ("customerId", status, "totalPriceCents", "currencyCode", items, "createdAt", "updatedAt", order_id, license_number)
+       VALUES ($1, $2, $3, $4, $5, now(), now(), $6, $7)
+       RETURNING id, order_id, license_number`,
+      [customerId, orderStatus, totalPriceCents, 'EUR', JSON.stringify(detailed), orderId, licenseNumber]
     )
     const created = insertRes && insertRes[0] ? insertRes[0] : null
+    
+    // Generate license PDFs for paid orders
+    if (orderStatus === OrderStatus.PAID && created) {
+      const pdfService = new LicensePDFService()
+      const emailService = new EmailService()
+      
+      // Get customer info from database
+      const customerRows: any[] = await AppDataSource.query(
+        `SELECT email, first_name, last_name FROM customer WHERE id = $1`,
+        [customerId]
+      )
+      const customer = customerRows && customerRows[0] ? customerRows[0] : null
+      
+      // Generate PDF for each item
+      for (const item of detailed) {
+        try {
+          await pdfService.generateLicensePDF({
+            orderId: created.order_id,
+            licenseNumber: created.license_number,
+            audioFileId: item.audio_id,
+            licenseModelId: item.license_model_id,
+            customerEmail: customer?.email || "",
+            customerFirstname: customer?.first_name || "",
+            customerLastname: customer?.last_name || ""
+          })
+        } catch (pdfErr) {
+          console.error(`[checkout] PDF generation failed for item:`, pdfErr)
+          // Continue even if PDF generation fails
+        }
+      }
+      
+      // Send order confirmation email
+      try {
+        await emailService.sendOrderConfirmation({
+          orderId: created.order_id,
+          licenseNumber: created.license_number,
+          customerEmail: customer?.email || "",
+          customerFirstname: customer?.first_name || "",
+          customerLastname: customer?.last_name || ""
+        })
+      } catch (emailErr) {
+        console.error(`[checkout] Email sending failed:`, emailErr)
+        // Continue even if email fails
+      }
+    }
+    
     return res.json({
       order_id: created ? created.order_id : orderId,
+      license_number: created ? created.license_number : licenseNumber,
       items: detailed,
       total_price_cents: totalPriceCents,
       currency_code: 'eur',

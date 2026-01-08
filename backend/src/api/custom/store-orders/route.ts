@@ -125,14 +125,21 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
         console.log(`[store/orders] Variant ${variant.id} → ${files.length} files`)
 
-        const fileList = files.map(f => ({
-          id: f.id,
-          filename: f.filename,
-          original_name: f.originalName,
-          size: f.size,
-          download_url: `/custom/uploads/variants/${f.filename}`,
-          url: `/custom/uploads/variants/${f.filename}`
-        }))
+        const fileList = files
+          .filter(f => {
+            // Include non-PDF files
+            if (!f.filename.endsWith('.pdf')) return true
+            // For PDFs, only include if they match this order
+            return f.filename.includes(`license-${order.orderId}-`)
+          })
+          .map(f => ({
+            id: f.id,
+            filename: f.filename,
+            original_name: f.originalName,
+            size: f.size,
+            download_url: `/custom/uploads/variants/${f.filename}`,
+            url: `/custom/uploads/variants/${f.filename}`
+          }))
 
         return {
           ...item,
@@ -149,6 +156,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       return {
         id: order.id,
         order_id: order.orderId,
+        license_number: order.licenseNumber,
         created_at: order.createdAt,
         status: order.status,
         total: order.totalPriceCents / 100,
