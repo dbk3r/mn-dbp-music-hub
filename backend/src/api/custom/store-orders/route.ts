@@ -1,9 +1,9 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { AppDataSource } from "../../../datasource/data-source"
 import { Order } from "../../../models/order"
-import { Product } from "../../../models/product"
-import { ProductVariant } from "../../../models/product-variant"
-import { VariantFile } from "../../../models/variant-file"
+import { AudioVariant } from "../../../models/audio-variant"
+import { AudioVariantFile } from "../../../models/audio-variant-file"
+import { LicenseModel } from "../../../models/license-model"
 import jwt from "jsonwebtoken"
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-me"
@@ -78,9 +78,9 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
   try {
     const orderRepo = AppDataSource.getRepository(Order)
-    const productRepo = AppDataSource.getRepository(Product)
-    const variantRepo = AppDataSource.getRepository(ProductVariant)
-    const fileRepo = AppDataSource.getRepository(VariantFile)
+    const variantRepo = AppDataSource.getRepository(AudioVariant)
+    const fileRepo = AppDataSource.getRepository(AudioVariantFile)
+    const licenseRepo = AppDataSource.getRepository(LicenseModel)
 
     // Find orders for this customer
     const orders = await orderRepo.find({
@@ -93,46 +93,34 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     // Enrich orders with download files
     const enriched = await Promise.all(orders.map(async (order) => {
       const enrichedItems = await Promise.all((order.items || []).map(async (item) => {
-        // 1. Find product by audio_file_id (which is item.audio_id)
-        const product = await productRepo.findOne({
-          where: { audioFileId: item.audio_id } as any
-        })
-
-        console.log(`[store/orders] Item audio_id=${item.audio_id} → product=${product?.id}`)
-
-        if (!product) {
-          console.log(`[store/orders] No product found for audio_id=${item.audio_id}`)
-          return {
-            ...item,
-            title: item.title,
-            unit_price: item.price_cents / 100,
-            variant: { files: [] }
-          }
-        }
-
-        // 2. Find variant by product_id and license_model_id
+        // Find audio variant directly by audio_file_id and license_model_id
         const variant = await variantRepo.findOne({
           where: { 
-            productId: product.id,
+            audioFileId: item.audio_id,
             licenseModelId: item.license_model_id 
           } as any
         })
 
-        console.log(`[store/orders] Product ${product.id} + license ${item.license_model_id} → variant=${variant?.id}`)
+        console.log(`[store/orders] Audio ${item.audio_id} + license ${item.license_model_id} → variant=${variant?.id}`)
 
         if (!variant) {
-          console.log(`[store/orders] No variant found for product=${product.id} license=${item.license_model_id}`)
+          console.log(`[store/orders] No variant found for audio=${item.audio_id} license=${item.license_model_id}`)
           return {
             ...item,
             title: item.title,
             unit_price: item.price_cents / 100,
-            variant: { files: [] }
+            variant: { name: null, license_model_name: null, files: [] }
           }
         }
 
-        // 3. Get files for this variant
+        // Get license model name
+        const licenseModel = await licenseRepo.findOne({
+          where: { id: variant.licenseModelId } as any
+        })
+
+        // Get files for this variant
         const files = await fileRepo.find({
-          where: { variantId: variant.id } as any
+          where: { audioVariantId: variant.id } as any
         })
 
         console.log(`[store/orders] Variant ${variant.id} → ${files.length} files`)
@@ -151,6 +139,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
           title: item.title,
           unit_price: item.price_cents / 100,
           variant: {
+            name: variant.name,
+            license_model_name: licenseModel?.name || null,
             files: fileList
           }
         }

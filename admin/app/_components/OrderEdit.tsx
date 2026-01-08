@@ -112,19 +112,15 @@ export default function OrderEdit({ order, onClose, onSaved }: Props) {
             {(() => {
               const STATUS_OPTIONS: string[] = [
                 "pending",
-                "authorized",
-                "captured",
-                "completed",
-                "canceled",
-                "refunded",
+                "paid",
+                "cancelled",
+                "delivered",
               ]
               const LABELS: Record<string, string> = {
                 pending: "Ausstehend",
-                authorized: "Autorisiert",
-                captured: "Eingezogen",
-                completed: "Abgeschlossen",
-                canceled: "Storniert",
-                refunded: "Erstattet",
+                paid: "Bezahlt",
+                cancelled: "Storniert",
+                delivered: "Ausgeliefert",
               }
               return (
                 <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ width: "100%", padding: 8 }}>

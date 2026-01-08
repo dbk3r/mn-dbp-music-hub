@@ -296,7 +296,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const orderId = `${dd}${mm}${yyyy}_${seqVal}`
 
   // Orders mit 0€ bekommen sofort status "completed"
-  const orderStatus = totalPriceCents === 0 ? OrderStatus.COMPLETED : OrderStatus.PENDING
+  const orderStatus = totalPriceCents === 0 ? OrderStatus.PAID : OrderStatus.PENDING
 
   // Insert order via raw SQL to include generated order_id (avoid schema migration step)
   try {

@@ -28,6 +28,23 @@ type AudioItem = {
 type OptionItem = { id: number; name: string };
 type LicenseItem = { id: number; name: string; priceCents: number };
 
+type Variant = {
+  id: number
+  license_model_id: number
+  license_model_name: string
+  name: string
+  price_cents: number
+  status: string
+  description: string | null
+}
+
+type VariantFile = {
+  id: number
+  original_name: string
+  size: number
+  download_url: string
+}
+
 export default function AudioPage() {
   const [items, setItems] = useState<AudioItem[]>([]);
   const [file, setFile] = useState<File | null>(null);
@@ -47,6 +64,17 @@ export default function AudioPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [isUploadFormExpanded, setIsUploadFormExpanded] = useState(false);
   const [search, setSearch] = useState("");
+
+  const [variants, setVariants] = useState<Variant[]>([])
+  const [variantFiles, setVariantFiles] = useState<Map<number, VariantFile[]>>(new Map())
+  const [newVariantLicense, setNewVariantLicense] = useState(0)
+  const [editingVariantId, setEditingVariantId] = useState<number | null>(null)
+  const [variantFormData, setVariantFormData] = useState<{
+    name: string
+    price_cents: number
+    status: string
+    description: string
+  }>({ name: "", price_cents: 0, status: "active", description: "" })
 
   const selected = useMemo(
     () => items.find((i) => i.id === selectedId) ?? null,
@@ -83,8 +111,30 @@ export default function AudioPage() {
       setEditCategoryId(selected.category_id ?? null);
       setEditTagIds(Array.isArray(selected.tag_ids) ? selected.tag_ids : []);
       setEditLicenseModelIds(Array.isArray(selected.license_model_ids) ? selected.license_model_ids : []);
+      
+      // Load variants for selected audio
+      refreshVariants(selected.id)
     }
   }, [selected]);
+
+  useEffect(() => {
+    if (!selected) return
+    variants.forEach((v) => {
+      if (!variantFiles.has(v.id)) {
+        const token = localStorage.getItem('admin_auth_token')
+        const headers = token ? { Authorization: `Bearer ${token}` } : {}
+        fetch(adminApiUrl(`/admin/audio/${selected.id}/variants/${v.id}/files`), { headers })
+          .then((r) => r.json())
+          .then((data) => {
+            setVariantFiles((prev) => {
+              const next = new Map(prev)
+              next.set(v.id, Array.isArray(data.items) ? data.items : [])
+              return next
+            })
+          })
+      }
+    })
+  }, [variants, selected, variantFiles])
 
   const url = useMemo(() => adminApiUrl("/audio"), []);
   const categoriesUrl = useMemo(() => adminApiUrl("/categories"), []);
@@ -191,7 +241,7 @@ export default function AudioPage() {
       setDescription("");
       setReleaseYear("");
       await refresh();
-      setInfo("Upload abgeschlossen (Produkt wird automatisch angelegt).");
+      setInfo("Upload abgeschlossen. Bearbeiten Sie das Audio und fügen Sie Lizenzmodelle/Varianten hinzu.");
     } finally {
       setIsBusy(false);
     }
@@ -223,33 +273,6 @@ export default function AudioPage() {
         setError(`Re-Analyse fehlgeschlagen (${res.status})`);
         return;
       }
-      await refresh();
-    } finally {
-      setIsBusy(false);
-    }
-  }
-
-  async function ensureProduct(id: number) {
-    setIsBusy(true);
-    setError(null);
-    setInfo(null);
-    try {
-      const res = await fetch(adminApiUrl("/admin/products"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ audio_file_id: id }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        const message = typeof data?.message === "string" ? data.message : `Produkt fehlgeschlagen (${res.status})`;
-        setError(message);
-        return;
-      }
-
-      const created = data?.created === true;
-      setInfo(created ? "Produkt angelegt." : "Produkt war bereits vorhanden.");
       await refresh();
     } finally {
       setIsBusy(false);
@@ -310,6 +333,142 @@ export default function AudioPage() {
       setSelectedId(null);
     } finally {
       setIsBusy(false);
+    }
+  }
+
+  async function refreshVariants(audioId: number) {
+    const token = localStorage.getItem('admin_auth_token')
+    const headers = token ? { Authorization: `Bearer ${token}` } : {}
+    const res = await fetch(adminApiUrl(`/admin/audio/${audioId}/variants`), { headers })
+    if (res.ok) {
+      const data = await res.json()
+      setVariants(Array.isArray(data.items) ? data.items : [])
+    }
+  }
+
+  async function handleAddVariant() {
+    if (!selected || !newVariantLicense) return
+    setIsBusy(true)
+    try {
+      const token = localStorage.getItem('admin_auth_token')
+      const r = await fetch(adminApiUrl(`/admin/audio/${selected.id}/variants`), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ license_model_id: newVariantLicense }),
+      })
+      if (r.ok) {
+        const created = await r.json()
+        setVariants((prev) => [...prev, created])
+        setNewVariantLicense(0)
+      }
+    } finally {
+      setIsBusy(false)
+    }
+  }
+
+  async function handleUpdateVariant(variantId: number) {
+    if (!selected) return
+    setIsBusy(true)
+    try {
+      const token = localStorage.getItem('admin_auth_token')
+      const r = await fetch(adminApiUrl(`/admin/audio/${selected.id}/variants/${variantId}`), {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(variantFormData),
+      })
+      if (r.ok) {
+        const updated = await r.json()
+        setVariants((prev) => prev.map((v) => (v.id === variantId ? { ...v, ...updated } : v)))
+        setEditingVariantId(null)
+      }
+    } finally {
+      setIsBusy(false)
+    }
+  }
+
+  async function handleDeleteVariant(variantId: number) {
+    if (!selected || !confirm("Variante löschen?")) return
+    setIsBusy(true)
+    try {
+      const token = localStorage.getItem('admin_auth_token')
+      const r = await fetch(adminApiUrl(`/admin/audio/${selected.id}/variants/${variantId}`), {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      if (r.ok) {
+        setVariants((prev) => prev.filter((v) => v.id !== variantId))
+        setVariantFiles((prev) => {
+          const next = new Map(prev)
+          next.delete(variantId)
+          return next
+        })
+      }
+    } finally {
+      setIsBusy(false)
+    }
+  }
+
+  async function handleUploadFile(variantId: number) {
+    if (!selected) return
+    const input = document.createElement("input")
+    input.type = "file"
+    input.onchange = async (e: any) => {
+      const file = e.target?.files?.[0]
+      if (!file) return
+
+      setIsBusy(true)
+      try {
+        const token = localStorage.getItem('admin_auth_token')
+        const backendUrl = typeof window !== 'undefined' ? 'http://localhost' : 'http://backend:9000';
+        const r = await fetch(`${backendUrl}/custom/admin/audio/${selected.id}/variants/${variantId}/files?filename=${encodeURIComponent(file.name)}&mime=${encodeURIComponent(file.type)}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": file.type,
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: file,
+        })
+        if (r.ok) {
+          const created = await r.json()
+          setVariantFiles((prev) => {
+            const next = new Map(prev)
+            const existing = next.get(variantId) || []
+            next.set(variantId, [...existing, created])
+            return next
+          })
+        }
+      } finally {
+        setIsBusy(false)
+      }
+    }
+    input.click()
+  }
+
+  async function handleDeleteFile(variantId: number, fileId: number) {
+    if (!selected || !confirm("Datei löschen?")) return
+    setIsBusy(true)
+    try {
+      const token = localStorage.getItem('admin_auth_token')
+      const r = await fetch(adminApiUrl(`/admin/audio/${selected.id}/variants/${variantId}/files/${fileId}`), {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      if (r.ok) {
+        setVariantFiles((prev) => {
+          const next = new Map(prev)
+          const existing = next.get(variantId) || []
+          next.set(variantId, existing.filter((f) => f.id !== fileId))
+          return next
+        })
+      }
+    } finally {
+      setIsBusy(false)
     }
   }
 
@@ -482,15 +641,6 @@ export default function AudioPage() {
                     <div className="flex items-center justify-end gap-2">
                       <button
                         className="flex h-8 w-8 items-center justify-center rounded hover:bg-foreground/5 disabled:opacity-60"
-                        onClick={() => ensureProduct(a.id)}
-                        disabled={isBusy}
-                        type="button"
-                        title="Produkt anlegen"
-                      >
-                        <span className="text-lg">➕</span>
-                      </button>
-                      <button
-                        className="flex h-8 w-8 items-center justify-center rounded hover:bg-foreground/5 disabled:opacity-60"
                         onClick={() => setSelectedId(a.id)}
                         disabled={isBusy}
                         type="button"
@@ -654,6 +804,201 @@ export default function AudioPage() {
             >
               Speichern
             </button>
+          </div>
+
+          {/* Varianten / Lizenzmodelle Section */}
+          <div className="mt-6 space-y-3 rounded border border-foreground/10 p-3">
+            <div className="text-sm font-medium">Varianten / Lizenzmodelle</div>
+            <div className="text-sm text-foreground/70">Jede Variante repräsentiert ein Lizenzmodell mit eigenem Preis und Download-Dateien.</div>
+            
+            {variants.length === 0 ? (
+              <div className="rounded border border-foreground/10 bg-foreground/5 p-4 text-sm text-foreground/70">
+                Keine Varianten vorhanden. Fügen Sie unten eine hinzu.
+              </div>
+            ) : (
+              variants.map((v) => {
+                const files = variantFiles.get(v.id) || []
+                const isEditing = editingVariantId === v.id
+                return (
+                  <div
+                    key={v.id}
+                    className="rounded border border-foreground/10 p-3"
+                    style={{
+                      borderColor: isEditing ? 'var(--primary, #0070f3)' : undefined,
+                      borderWidth: isEditing ? '2px' : undefined,
+                    }}
+                  >
+                    {isEditing ? (
+                      <div>
+                        <div className="mb-3 text-sm font-medium">Variante bearbeiten</div>
+                        <div className="space-y-3">
+                          <div>
+                            <label className="text-sm">Name</label>
+                            <input
+                              type="text"
+                              value={variantFormData.name}
+                              onChange={(e) => setVariantFormData({ ...variantFormData, name: e.target.value })}
+                              className="h-10 w-full rounded border border-foreground/15 bg-background px-3 text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm">Preis (Cent)</label>
+                            <input
+                              type="number"
+                              value={variantFormData.price_cents}
+                              onChange={(e) => setVariantFormData({ ...variantFormData, price_cents: Number(e.target.value) })}
+                              className="h-10 w-full rounded border border-foreground/15 bg-background px-3 text-sm"
+                            />
+                            <small className="text-foreground/70">Aktuell: {(variantFormData.price_cents / 100).toFixed(2)}€</small>
+                          </div>
+                          <div>
+                            <label className="text-sm">Status</label>
+                            <select
+                              value={variantFormData.status}
+                              onChange={(e) => setVariantFormData({ ...variantFormData, status: e.target.value })}
+                              className="h-10 w-full rounded border border-foreground/15 bg-background px-3 text-sm"
+                            >
+                              <option value="active">Aktiv (verfügbar)</option>
+                              <option value="inactive">Inaktiv (nicht verfügbar)</option>
+                              <option value="sold_out">Ausverkauft</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-sm">Beschreibung / Lizenzbedingungen</label>
+                            <textarea
+                              value={variantFormData.description}
+                              onChange={(e) => setVariantFormData({ ...variantFormData, description: e.target.value })}
+                              placeholder="Details zur Lizenz, Nutzungsbedingungen, etc."
+                              className="min-h-20 w-full rounded border border-foreground/15 bg-background px-3 py-2 text-sm"
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleUpdateVariant(v.id)}
+                              className="h-10 rounded bg-foreground px-4 text-sm font-medium text-background"
+                            >
+                              Speichern
+                            </button>
+                            <button
+                              className="h-10 rounded border border-foreground/15 px-4 text-sm"
+                              onClick={() => setEditingVariantId(null)}
+                            >
+                              Abbrechen
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="mb-3 flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="mb-1 flex items-center gap-2">
+                              <div className="text-sm font-medium">{v.name}</div>
+                              <span className="rounded bg-foreground/10 px-2 py-0.5 text-xs">
+                                {v.status === "active" ? "Aktiv" : v.status === "sold_out" ? "Ausverkauft" : "Inaktiv"}
+                              </span>
+                            </div>
+                            <div className="text-sm text-foreground/70">
+                              Lizenzmodell: <strong>{v.license_model_name}</strong> · Preis: <strong>{(v.price_cents / 100).toFixed(2)}€</strong>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                setEditingVariantId(v.id)
+                                setVariantFormData({
+                                  name: v.name,
+                                  price_cents: v.price_cents,
+                                  status: v.status,
+                                  description: v.description || "",
+                                })
+                              }}
+                              className="h-8 rounded border border-foreground/15 px-3 text-sm hover:bg-foreground/5"
+                            >
+                              Bearbeiten
+                            </button>
+                            <button
+                              className="h-8 rounded border border-red-500 px-3 text-sm text-red-500 hover:bg-red-500 hover:text-white"
+                              onClick={() => handleDeleteVariant(v.id)}
+                            >
+                              Löschen
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="mt-3 rounded border border-foreground/10 bg-foreground/5 p-3">
+                          <div className="mb-2 flex items-center justify-between">
+                            <strong className="text-sm">Download-Dateien ({files.length})</strong>
+                            <button
+                              className="h-8 rounded bg-green-600 px-3 text-sm text-white hover:bg-green-700"
+                              onClick={() => handleUploadFile(v.id)}
+                            >
+                              + Datei hochladen
+                            </button>
+                          </div>
+                          {files.length === 0 ? (
+                            <p className="text-sm text-foreground/70">Keine Dateien angehängt. Laden Sie Dateien hoch, die Käufer herunterladen können.</p>
+                          ) : (
+                            <div className="space-y-2">
+                              {files.map((f) => (
+                                <div
+                                  key={f.id}
+                                  className="flex items-center justify-between rounded border border-foreground/10 bg-background p-2"
+                                >
+                                  <div className="flex-1">
+                                    <a
+                                      href={f.download_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-sm font-medium hover:underline"
+                                    >
+                                      {f.original_name}
+                                    </a>
+                                    <div className="text-xs text-foreground/70">{(f.size / 1024).toFixed(1)} KB</div>
+                                  </div>
+                                  <button
+                                    className="h-8 rounded border border-red-500 px-3 text-xs text-red-500 hover:bg-red-500 hover:text-white"
+                                    onClick={() => handleDeleteFile(v.id, f.id)}
+                                  >
+                                    Löschen
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })
+            )}
+
+            <div className="rounded border-2 border-dashed border-foreground/20 p-3">
+              <div className="mb-2 text-sm font-medium">Neue Variante hinzufügen</div>
+              <div className="mb-3 text-sm text-foreground/70">Wählen Sie ein Lizenzmodell. Preis und Name werden als Vorlage übernommen und können anschließend angepasst werden.</div>
+              <div className="flex gap-2">
+                <select
+                  value={newVariantLicense}
+                  onChange={(e) => setNewVariantLicense(Number(e.target.value))}
+                  className="h-10 flex-1 rounded border border-foreground/15 bg-background px-3 text-sm"
+                >
+                  <option value={0}>Lizenzmodell wählen ({licenses.length} verfügbar)</option>
+                  {licenses.map((lm) => (
+                    <option key={lm.id} value={lm.id}>
+                      {lm.name} — {(lm.priceCents / 100).toFixed(2)}€
+                    </option>
+                  ))}
+                </select>
+                <button
+                  className="h-10 rounded bg-green-600 px-4 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
+                  onClick={handleAddVariant}
+                  disabled={!newVariantLicense}
+                >
+                  + Hinzufügen
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       ) : null}

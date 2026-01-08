@@ -539,8 +539,46 @@
 
   .order-summary {
     margin-bottom: 12px;
-    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 12px;
     font-size: 14px;
+  }
+
+  .order-status {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: white !important;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .order-status-paid {
+    background: #22c55e !important;
+  }
+
+  .order-status-pending {
+    background: #eab308 !important;
+  }
+
+  .order-status-cancelled {
+    background: #ef4444 !important;
+  }
+
+  .order-status-delivered {
+    background: #3b82f6 !important;
+  }
+
+  .order-status-unknown {
+    background: #6b7280 !important;
+  }
+
+  .order-total {
+    color: var(--foreground);
+    font-weight: 600;
   }
 
   .order-items {
@@ -549,25 +587,24 @@
   }
 
   .order-item {
-    display: flex;
-    justify-content: space-between;
     padding: 12px 0;
     border-top: 1px solid var(--order-item-border);
-    gap: 16px;
   }
 
   .order-item:first-child {
     border-top: none;
   }
 
-  .order-item-info {
-    flex: 1;
+  .order-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
   }
 
   .order-item-title {
     font-weight: 600;
     font-size: 15px;
-    margin-bottom: 4px;
     color: var(--foreground);
   }
 
@@ -576,12 +613,34 @@
     color: var(--text-muted);
   }
 
+  .order-item-variant {
+    margin-left: 16px;
+    margin-bottom: 8px;
+    padding: 6px 12px;
+    background: var(--card-hover);
+    border-left: 3px solid var(--primary);
+    border-radius: 4px;
+    font-size: 14px;
+  }
+
+  .variant-label {
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-right: 8px;
+  }
+
+  .variant-name {
+    color: var(--foreground);
+  }
+
   .order-item-downloads {
-    text-align: right;
+    margin-left: 16px;
+  }
+
+  .download-list {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    align-items: flex-end;
   }
 
   .order-download-btn {

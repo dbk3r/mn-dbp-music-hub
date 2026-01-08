@@ -48,9 +48,9 @@ export default function AccountPage() {
           if (Array.isArray(data)) allOrders = data
           else if (data && data.orders) allOrders = data.orders
           
-          // Filter: Nur completed Orders anzeigen
-          const completedOrders = allOrders.filter((o: any) => o.status === 'completed')
-          setOrders(completedOrders)
+          // Filter: Nur paid Orders anzeigen
+          const paidOrders = allOrders.filter((o: any) => o.status === 'paid')
+          setOrders(paidOrders)
         } else {
           const text = await r.text()
           if (!mounted) return
@@ -87,21 +87,38 @@ export default function AccountPage() {
                   <div className="order-id">Bestellung #{o.id || o.order_id}</div>
                   <div className="order-date">{new Date(o.created_at || o.created || Date.now()).toLocaleString()}</div>
                 </div>
-                <div className="order-summary">{o.status || "-"} — {o.total ? `${o.total} ${o.currency_code || "EUR"}` : "-"}</div>
+                <div className="order-summary">
+                  <span className={`order-status order-status-${o.status || 'unknown'}`}>
+                    {o.status === 'paid' ? 'Bezahlt' : 
+                     o.status === 'pending' ? 'Ausstehend' : 
+                     o.status === 'cancelled' ? 'Storniert' : 
+                     o.status === 'delivered' ? 'Geliefert' : 
+                     o.status || '-'}
+                  </span>
+                  <span className="order-total">{o.total ? `${o.total} ${o.currency_code || "EUR"}` : "-"}</span>
+                </div>
                 <div className="order-items">
                   {(o.items || o.order_items || []).map((it: any, i: number) => (
                     <div key={i} className="order-item">
-                      <div className="order-item-info">
+                      <div className="order-item-header">
                         <div className="order-item-title">{it.title || it.name || it.product_title || "Produkt"}</div>
                         <div className="order-item-price">{it.unit_price ? `${it.unit_price} ${o.currency_code || "EUR"}` : ""}</div>
                       </div>
+                      {it.variant && (it.variant.name || it.variant.license_model_name) && (
+                        <div className="order-item-variant">
+                          <span className="variant-label">Lizenz:</span>
+                          <span className="variant-name">{it.variant.name || it.variant.license_model_name}</span>
+                        </div>
+                      )}
                       <div className="order-item-downloads">
                         {it.variant && it.variant.files && it.variant.files.length > 0 ? (
-                          it.variant.files.map((f: any) => (
-                            <a key={f.id || f.filename} href={f.download_url || f.url || f.path} target="_blank" rel="noreferrer" className="order-download-btn">
-                              {f.original_name || f.filename || "Herunterladen"}
-                            </a>
-                          ))
+                          <div className="download-list">
+                            {it.variant.files.map((f: any, idx: number) => (
+                              <a key={f.id || f.filename} href={f.download_url || f.url || f.path} target="_blank" rel="noreferrer" className="order-download-btn">
+                                📥 Download {it.variant.files.length > 1 ? `${idx + 1}` : ""} ({f.original_name || f.filename})
+                              </a>
+                            ))}
+                          </div>
                         ) : (
                           <div className="order-no-downloads">Keine Downloads</div>
                         )}

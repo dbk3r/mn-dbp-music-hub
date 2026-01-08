@@ -1,9 +1,9 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { AppDataSource } from "../../../../../../../datasource/data-source"
-import { ProductVariant } from "../../../../../../../models/product-variant"
+import { AudioVariant } from "../../../../../../../models/audio-variant"
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
-  console.log("[custom/admin/products/variant] auth header:", req.headers.authorization)
+  console.log("[custom/admin/audio/variant] auth header:", req.headers.authorization)
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PATCH, DELETE");
   res.header("Access-Control-Allow-Headers", "Content-Type, x-publishable-api-key, Authorization");
@@ -11,18 +11,18 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   if (!AppDataSource.isInitialized) await AppDataSource.initialize()
 
   const { id, variantId } = (req as any).params || {}
-  const productId = Number(id)
+  const audioFileId = Number(id)
   const vid = Number(variantId)
-  if (!productId || !vid) return res.status(400).json({ message: 'missing id' })
+  if (!audioFileId || !vid) return res.status(400).json({ message: 'missing id' })
 
-  const repo = AppDataSource.getRepository(ProductVariant)
-  const v = await repo.findOne({ where: { id: vid, productId } } as any)
+  const repo = AppDataSource.getRepository(AudioVariant)
+  const v = await repo.findOne({ where: { id: vid, audioFileId } } as any)
   if (!v) return res.status(404).json({ message: 'not found' })
   return res.json(v)
 }
 
 export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
-  console.log("[custom/admin/products/variant] auth header:", req.headers.authorization)
+  console.log("[custom/admin/audio/variant] auth header:", req.headers.authorization)
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PATCH, DELETE");
   res.header("Access-Control-Allow-Headers", "Content-Type, x-publishable-api-key, Authorization");
@@ -30,13 +30,13 @@ export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
   if (!AppDataSource.isInitialized) await AppDataSource.initialize()
 
   const { id, variantId } = (req as any).params || {}
-  const productId = Number(id)
+  const audioFileId = Number(id)
   const vid = Number(variantId)
-  if (!productId || !vid) return res.status(400).json({ message: 'missing id' })
+  if (!audioFileId || !vid) return res.status(400).json({ message: 'missing id' })
 
-  const repo = AppDataSource.getRepository(ProductVariant)
+  const repo = AppDataSource.getRepository(AudioVariant)
   const body = (req as any).body || {}
-  const v = await repo.findOne({ where: { id: vid, productId } } as any)
+  const v = await repo.findOne({ where: { id: vid, audioFileId } } as any)
   if (!v) return res.status(404).json({ message: 'not found' })
 
   if (body.name !== undefined) v.name = body.name
@@ -49,7 +49,7 @@ export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
 }
 
 export async function DELETE(req: MedusaRequest, res: MedusaResponse) {
-  console.log("[custom/admin/products/variant] auth header:", req.headers.authorization)
+  console.log("[custom/admin/audio/variant] auth header:", req.headers.authorization)
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PATCH, DELETE");
   res.header("Access-Control-Allow-Headers", "Content-Type, x-publishable-api-key, Authorization");
@@ -57,11 +57,11 @@ export async function DELETE(req: MedusaRequest, res: MedusaResponse) {
   if (!AppDataSource.isInitialized) await AppDataSource.initialize()
 
   const { id, variantId } = (req as any).params || {}
-  const productId = Number(id)
+  const audioFileId = Number(id)
   const vid = Number(variantId)
-  if (!productId || !vid) return res.status(400).json({ message: 'missing id' })
+  if (!audioFileId || !vid) return res.status(400).json({ message: 'missing id' })
 
-  const repo = AppDataSource.getRepository(ProductVariant)
-  await repo.delete({ id: vid, productId } as any)
+  const repo = AppDataSource.getRepository(AudioVariant)
+  await repo.delete({ id: vid, audioFileId } as any)
   return res.json({ ok: true })
 }

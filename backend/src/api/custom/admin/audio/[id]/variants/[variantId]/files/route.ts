@@ -1,6 +1,6 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { AppDataSource } from "../../../../../../../../datasource/data-source"
-import { VariantFile } from "../../../../../../../../models/variant-file"
+import { AudioVariantFile } from "../../../../../../../../models/audio-variant-file"
 import fs from "fs"
 import path from "path"
 
@@ -13,7 +13,7 @@ async function readBody(req: any) {
 }
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
-  console.log("[custom/admin/variant-files] auth header:", req.headers.authorization)
+  console.log("[custom/admin/audio-variant-files] auth header:", req.headers.authorization)
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, DELETE");
   res.header("Access-Control-Allow-Headers", "Content-Type, x-publishable-api-key, Authorization");
@@ -24,14 +24,14 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const vid = Number(variantId)
   if (!vid) return res.status(400).json({ message: 'missing variant id' })
 
-  const repo = AppDataSource.getRepository(VariantFile)
-  const items = await repo.find({ where: { variantId: vid } } as any)
+  const repo = AppDataSource.getRepository(AudioVariantFile)
+  const items = await repo.find({ where: { audioVariantId: vid } } as any)
 
   const mapped = items.map((f: any) => ({
     id: f.id,
     original_name: f.originalName,
     size: f.size,
-    download_url: `/uploads/variants/${f.filename}`,
+    download_url: `/uploads/audio-variants/${f.filename}`,
     created_at: f.createdAt,
   }))
 
@@ -39,7 +39,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 }
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
-  console.log("[custom/admin/variant-files] auth header:", req.headers.authorization)
+  console.log("[custom/admin/audio-variant-files] auth header:", req.headers.authorization)
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, DELETE");
   res.header("Access-Control-Allow-Headers", "Content-Type, x-publishable-api-key, Authorization");
@@ -56,15 +56,15 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
   const buffer = await readBody(req)
 
-  const uploadsDir = path.resolve(process.cwd(), 'uploads', 'variants')
+  const uploadsDir = path.resolve(process.cwd(), 'uploads', 'audio-variants')
   fs.mkdirSync(uploadsDir, { recursive: true })
   const safe = `${Date.now()}-${original.replace(/[^a-zA-Z0-9._-]/g, '_')}`
   const filePath = path.join(uploadsDir, safe)
   fs.writeFileSync(filePath, buffer)
 
-  const repo = AppDataSource.getRepository(VariantFile)
+  const repo = AppDataSource.getRepository(AudioVariantFile)
   const vf = repo.create({
-    variantId: vid,
+    audioVariantId: vid,
     originalName: original,
     filename: safe,
     mimeType: mime,
@@ -72,11 +72,16 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   } as any)
   const saved = await repo.save(vf as any)
 
-  return res.status(201).json({ id: saved.id, original_name: saved.originalName, download_url: `/uploads/variants/${saved.filename}`, size: saved.size })
+  return res.status(201).json({ 
+    id: saved.id, 
+    original_name: saved.originalName, 
+    download_url: `/uploads/audio-variants/${saved.filename}`, 
+    size: saved.size 
+  })
 }
 
 export async function DELETE(req: MedusaRequest, res: MedusaResponse) {
-  console.log("[custom/admin/variant-files] auth header:", req.headers.authorization)
+  console.log("[custom/admin/audio-variant-files] auth header:", req.headers.authorization)
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, DELETE");
   res.header("Access-Control-Allow-Headers", "Content-Type, x-publishable-api-key, Authorization");
@@ -88,11 +93,11 @@ export async function DELETE(req: MedusaRequest, res: MedusaResponse) {
   const fid = Number(fileId)
   if (!vid || !fid) return res.status(400).json({ message: 'missing id' })
 
-  const repo = AppDataSource.getRepository(VariantFile)
-  const file = await repo.findOne({ where: { id: fid, variantId: vid } } as any)
+  const repo = AppDataSource.getRepository(AudioVariantFile)
+  const file = await repo.findOne({ where: { id: fid, audioVariantId: vid } } as any)
   if (!file) return res.status(404).json({ message: 'not found' })
 
-  const filePath = path.resolve(process.cwd(), 'uploads', 'variants', file.filename)
+  const filePath = path.resolve(process.cwd(), 'uploads', 'audio-variants', file.filename)
   try { fs.unlinkSync(filePath) } catch (e) {}
   await repo.delete({ id: fid } as any)
   return res.json({ ok: true })

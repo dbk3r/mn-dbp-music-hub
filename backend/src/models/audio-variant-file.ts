@@ -1,12 +1,12 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from "typeorm"
 
 @Entity({ name: "audio_variant_file" })
-export class VariantFile {
+export class AudioVariantFile {
   @PrimaryGeneratedColumn()
   id: number
 
-  @Column({ name: "variant_id", type: "int" })
-  variantId: number
+  @Column({ name: "audio_variant_id", type: "int" })
+  audioVariantId: number
 
   @Column({ name: "original_name", type: "varchar" })
   originalName: string

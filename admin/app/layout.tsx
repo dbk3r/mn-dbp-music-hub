@@ -30,9 +30,8 @@ const menuItems: MenuItem[] = [
   {
     href: "/shop",
     label: "Shop",
-    permission: { resource: "products", action: "view" },
+    permission: { resource: "orders", action: "view" },
     children: [
-      { href: "/shop/products", label: "Produkte", permission: { resource: "products", action: "view" } },
       { href: "/shop/orders", label: "Bestellungen", permission: { resource: "orders", action: "view" } },
     ],
   },
