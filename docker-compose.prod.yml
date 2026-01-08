@@ -5,7 +5,7 @@ services:
       STORE_CORS: https://dbp-music-hub.de
       ADMIN_CORS: https://dbp-music-hub.de/dbp-admin
       AUTH_CORS: https://dbp-music-hub.de/dbp-admin,https://dbp-music-hub.de
-    command: sh -c "command -v ffmpeg >/dev/null 2>&1 || (apt-get update && apt-get install -y ffmpeg); yarn install && yarn build && yarn start"
+    command: sh -c "command -v ffmpeg >/dev/null 2>&1 || (apt-get update && apt-get install -y ffmpeg); yarn install --frozen-lockfile --production=true && yarn build && yarn start"
     ports: []  # Keine externen Ports in Production
 
   frontend:
