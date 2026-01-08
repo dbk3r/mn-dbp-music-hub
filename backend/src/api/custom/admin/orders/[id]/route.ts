@@ -96,7 +96,52 @@ export async function DELETE(req: MedusaRequest, res: MedusaResponse) {
   }
   const id = (req.params as any).id
   if (!id) return res.status(400).json({ message: 'missing id' })
+  
   try {
+    // Get order to find associated files
+    const orderRows: any[] = await AppDataSource.query(
+      'SELECT order_id FROM orders WHERE id::text = $1 OR order_id = $1',
+      [id]
+    )
+    const orderId = orderRows[0]?.order_id
+    
+    if (orderId) {
+      // Find all PDF files for this order
+      const fs = require('fs')
+      const path = require('path')
+      const uploadsDir = path.join(process.cwd(), 'uploads', 'variants')
+      
+      if (fs.existsSync(uploadsDir)) {
+        const files = fs.readdirSync(uploadsDir)
+        // Filter files that belong to this order: license-{order_id}-...
+        const orderFiles = files.filter((file: string) => 
+          file.startsWith(`license-${orderId}-`) && file.endsWith('.pdf')
+        )
+        
+        for (const filename of orderFiles) {
+          // Check if this file is referenced in audio_variant_file table
+          const refRows: any[] = await AppDataSource.query(
+            'SELECT id FROM audio_variant_file WHERE filename = $1',
+            [filename]
+          )
+          
+          // If file is not referenced anywhere, delete it
+          if (refRows.length === 0) {
+            const filePath = path.join(uploadsDir, filename)
+            try {
+              fs.unlinkSync(filePath)
+              console.log(`[DELETE Order] Removed unreferenced file: ${filename}`)
+            } catch (fileErr) {
+              console.error(`[DELETE Order] Failed to delete file ${filename}:`, fileErr)
+            }
+          } else {
+            console.log(`[DELETE Order] Keeping file ${filename} (still referenced)`)
+          }
+        }
+      }
+    }
+    
+    // Delete the order from database
     await AppDataSource.query('DELETE FROM orders WHERE id::text = $1 OR order_id = $1', [id])
     return res.json({ message: 'deleted' })
   } catch (err:any) {
