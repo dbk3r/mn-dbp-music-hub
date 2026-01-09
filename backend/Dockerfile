@@ -34,6 +34,9 @@ COPY --from=builder /app/.medusa/server/public ./public
 
 # Copy scripts needed at runtime (e.g. create-admin) so ts-node can access them
 COPY --from=builder /app/src/scripts ./src/scripts
+# Copy tsconfig and source files so runtime ts-node can resolve imports
+COPY --from=builder /app/tsconfig.json ./tsconfig.json
+COPY --from=builder /app/src ./src
 
 # Use yarn start so package.json start script is respected
 CMD ["yarn", "start"]
