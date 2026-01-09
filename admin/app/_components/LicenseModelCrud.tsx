@@ -54,7 +54,7 @@ export default function LicenseModelCrud() {
   const refresh = useCallback(async () => {
     setError(null);
     const token = typeof window !== "undefined" ? localStorage.getItem("admin_auth_token") : null;
-    const headers = token ? { Authorization: `Bearer ${token}` } : {}
+    const headers = token ? { Authorization: `Bearer ${token}` } : undefined
     const res = await fetch(url, { cache: "no-store", headers });
     if (!res.ok) {
       setError(`Laden fehlgeschlagen (${res.status})`);
@@ -147,7 +147,7 @@ export default function LicenseModelCrud() {
     setError(null);
     try {
       const token = typeof window !== "undefined" ? localStorage.getItem("admin_auth_token") : null;
-      const headers = token ? { Authorization: `Bearer ${token}` } : {}
+      const headers = token ? { Authorization: `Bearer ${token}` } : undefined
       const res = await fetch(`${url}/${id}`, { method: "DELETE", headers });
       if (!res.ok) {
         setError(`Löschen fehlgeschlagen (${res.status})`);
