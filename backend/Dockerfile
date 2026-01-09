@@ -32,5 +32,8 @@ COPY --from=builder /app/medusa-config.js ./medusa-config.js
 # Also copy the built admin/public files to the expected public/admin path
 COPY --from=builder /app/.medusa/server/public ./public
 
+# Copy scripts needed at runtime (e.g. create-admin) so ts-node can access them
+COPY --from=builder /app/src/scripts ./src/scripts
+
 # Use yarn start so package.json start script is respected
 CMD ["yarn", "start"]
