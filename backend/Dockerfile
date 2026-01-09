@@ -19,4 +19,5 @@ ENV NODE_ENV=production
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/yarn.lock ./yarn.lock
 RUN apt-get update && apt-get install -y ffmpeg
-RUN yarn install --frozen-lockfile --production=true --ignore-scripts && yarn build 
+RUN yarn install --frozen-lockfile --production=true --ignore-scripts
+RUN yarn build 
