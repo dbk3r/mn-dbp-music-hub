@@ -49,9 +49,12 @@ services:
       start_period: 5s
 
   frontend:
-    image: node:20
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile  
+    image: frontend:prod
     working_dir: /app
-    command: sh -c "yarn install && yarn start -- -H 0.0.0.0 -p 3000"
+    command: sh -c "yarn start -- -H 0.0.0.0 -p 3000"
     environment:
       BACKEND_URL: http://backend:9000
     env_file:
@@ -59,28 +62,30 @@ services:
     depends_on:
       backend:
         condition: service_healthy
-    volumes:
-      - ./frontend:/app
+    
     ports:
       - "3000:3000"
     networks:
       - mn-dbp-net
 
   admin:
-    image: node:20
+    build:
+      context: ./admin
+      dockerfile: Dockerfile
+    image: admin:prod
     working_dir: /app
-    command: sh -c "yarn install && yarn start -- -H 0.0.0.0 -p 7000"
+    # Start the production server from the built image
+    command: ["yarn","start","--","-H","0.0.0.0","-p","7000"]
     environment:
       NEXT_PUBLIC_MEDUSA_BACKEND_URL: http://backend:9000
       NEXT_PUBLIC_BASE_PATH: /dbp-admin
-      MEDUSA_BACKEND_INTERNAL_URL: http://backend:9000     
+      MEDUSA_BACKEND_INTERNAL_URL: http://backend:9000
     env_file:
       - ./admin/.env
     depends_on:
       backend:
         condition: service_healthy
-    volumes:
-      - ./admin:/app
+    # Do NOT mount the source in production (would overwrite the built image)
     ports:
       - "7001:7000"
     networks:
