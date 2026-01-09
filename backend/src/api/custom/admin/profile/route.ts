@@ -75,6 +75,10 @@ export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
       relations: ["roles"]
     } as any)
 
+    if (!user) {
+      return res.status(404).json({ message: "user not found" })
+    }
+
     return res.json({
       id: user.id,
       email: user.email,
