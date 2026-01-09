@@ -4,8 +4,8 @@ loadEnv(process.env.NODE_ENV || 'development', process.cwd())
 
 module.exports = defineConfig({
   projectConfig: {
-    databaseUrl: process.env.DATABASE_URL,    
-    redisUrl: process.env.REDIS_URL,
+    databaseUrl: process.env.DATABASE_URL,
+    redisUrl: process.env.REDIS_URL || "redis://redis:6379",
     http: {
       storeCors: process.env.STORE_CORS!,
       adminCors: process.env.ADMIN_CORS!,
