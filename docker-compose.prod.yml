@@ -27,7 +27,7 @@ services:
       dockerfile: Dockerfile  
     image: backend:prod
     working_dir: /app
-    command: sh -c "CHOKIDAR_USEPOLLING=false WATCHPACK_POLLING=false  yarn start"        
+    command: sh -c "yarn install && yarn build && CHOKIDAR_USEPOLLING=false WATCHPACK_POLLING=false  yarn start"        
     env_file:
       - ./backend/.env
     depends_on:
