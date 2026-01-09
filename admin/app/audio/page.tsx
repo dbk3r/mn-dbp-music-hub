@@ -145,7 +145,7 @@ export default function AudioPage() {
     setError(null);
     setInfo(null);
     const token = localStorage.getItem("admin_auth_token")
-    const headers = token ? { Authorization: `Bearer ${token}` } : {}
+    const headers = token ? { Authorization: `Bearer ${token}` } : undefined
     const res = await fetch(url, { cache: "no-store", headers });
     if (!res.ok) {
       setError(`Laden fehlgeschlagen (${res.status})`);
@@ -157,7 +157,7 @@ export default function AudioPage() {
 
   async function refreshOptions() {
     const token = localStorage.getItem("admin_auth_token")
-    const headers = token ? { Authorization: `Bearer ${token}` } : {}
+    const headers = token ? { Authorization: `Bearer ${token}` } : undefined
 
     const [cRes, tRes, lRes] = await Promise.all([
       fetch(categoriesUrl, { cache: "no-store", headers }),
@@ -338,7 +338,7 @@ export default function AudioPage() {
 
   async function refreshVariants(audioId: number) {
     const token = localStorage.getItem('admin_auth_token')
-    const headers = token ? { Authorization: `Bearer ${token}` } : {}
+    const headers = token ? { Authorization: `Bearer ${token}` } : undefined
     const res = await fetch(adminApiUrl(`/admin/audio/${audioId}/variants`), { headers })
     if (res.ok) {
       const data = await res.json()
@@ -399,7 +399,7 @@ export default function AudioPage() {
       const token = localStorage.getItem('admin_auth_token')
       const r = await fetch(adminApiUrl(`/admin/audio/${selected.id}/variants/${variantId}`), {
         method: "DELETE",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       })
       if (r.ok) {
         setVariants((prev) => prev.filter((v) => v.id !== variantId))
@@ -457,7 +457,7 @@ export default function AudioPage() {
       const token = localStorage.getItem('admin_auth_token')
       const r = await fetch(adminApiUrl(`/admin/audio/${selected.id}/variants/${variantId}/files/${fileId}`), {
         method: "DELETE",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       })
       if (r.ok) {
         setVariantFiles((prev) => {
