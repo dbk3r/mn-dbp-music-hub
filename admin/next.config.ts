@@ -3,13 +3,14 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   basePath: "/dbp-admin",
   experimental: {
-    serverActions: {
-      bodySizeLimit: "100mb",
+    serverActions: true,
+  },
+  // Increase body size limit for API routes
+  api: {
+    bodyParser: {
+      sizeLimit: "100mb",
     },
   },
-  // Increase body size limit for rewrites/middleware
-  bodySizeLimit: "100mb",
-  clientMaxBodySize: "100mb",
   async rewrites() {
     // Use internal URL for server-side requests (Docker network)
     // Falls back to external URL if internal is not set
