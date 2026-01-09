@@ -102,7 +102,7 @@ services:
     volumes:
       - ./haproxy/haproxy.prod.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
       # If you have TLS certs, mount them under /etc/haproxy/certs inside the container
-      # - ./haproxy/certs:/etc/haproxy/certs:ro
+      - ./haproxy/certs:/etc/haproxy/certs:ro
     networks:
       - mn-dbp-net
 
