@@ -15,7 +15,7 @@ ENV NODE_ENV=production
 # Install runtime system deps (ffmpeg), dotenv-cli for scripts and clean apt lists
 RUN apt-get update \
 	&& apt-get install -y --no-install-recommends ffmpeg \
-	&& npm install -g dotenv-cli \
+	&& npm install -g dotenv-cli ts-node typescript \
 	&& rm -rf /var/lib/apt/lists/*
 
 # Copy package metadata
