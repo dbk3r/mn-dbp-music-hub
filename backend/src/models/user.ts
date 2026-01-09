@@ -19,6 +19,49 @@ export class User {
   @Column({ name: "avatar_url", type: "varchar", nullable: true })
   avatarUrl: string | null
 
+  @Column({ name: "first_name", type: "varchar", nullable: true })
+  firstName: string | null
+
+  @Column({ name: "last_name", type: "varchar", nullable: true })
+  lastName: string | null
+
+  @Column({ type: "varchar", nullable: true })
+  phone: string | null
+
+  @Column({ name: "address_1", type: "varchar", nullable: true })
+  address1: string | null
+
+  @Column({ name: "address_2", type: "varchar", nullable: true })
+  address2: string | null
+
+  @Column({ type: "varchar", nullable: true })
+  city: string | null
+
+  @Column({ name: "postal_code", type: "varchar", nullable: true })
+  postalCode: string | null
+
+  @Column({ name: "country_code", type: "varchar", length: 2, nullable: true })
+  countryCode: string | null
+
+  // Payment information (for vendors)
+  @Column({ type: "varchar", nullable: true })
+  iban: string | null
+
+  @Column({ type: "varchar", nullable: true })
+  bic: string | null
+
+  @Column({ name: "bank_account_holder", type: "varchar", nullable: true })
+  bankAccountHolder: string | null
+
+  @Column({ name: "paypal_email", type: "varchar", nullable: true })
+  paypalEmail: string | null
+
+  @Column({ name: "tax_number", type: "varchar", nullable: true })
+  taxNumber: string | null
+
+  @Column({ name: "vat_id", type: "varchar", nullable: true })
+  vatId: string | null
+
   @Column({ type: "jsonb", nullable: true })
   metadata: any
 

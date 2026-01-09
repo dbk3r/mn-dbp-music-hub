@@ -2,14 +2,15 @@ import { backendUrl, getBackendToken } from "../_backend"
 
 export async function GET(req: Request) {
   try {
-    const token = await getBackendToken()
     const auth = req.headers.get("authorization")
+    const token = await getBackendToken()
     const headers: Record<string, string> = {}
     
-    if (token) {
-      headers.Authorization = `Bearer ${token}`
-    } else if (auth) {
+    // Prefer user token from client over service token
+    if (auth) {
       headers.Authorization = auth
+    } else if (token) {
+      headers.Authorization = `Bearer ${token}`
     }
 
     const target = backendUrl("/custom/admin/profile")
@@ -32,16 +33,17 @@ export async function GET(req: Request) {
 
 export async function PATCH(req: Request) {
   try {
-    const token = await getBackendToken()
     const auth = req.headers.get("authorization")
+    const token = await getBackendToken()
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     }
     
-    if (token) {
-      headers.Authorization = `Bearer ${token}`
-    } else if (auth) {
+    // Prefer user token from client over service token
+    if (auth) {
       headers.Authorization = auth
+    } else if (token) {
+      headers.Authorization = `Bearer ${token}`
     }
 
     const body = await req.text()
