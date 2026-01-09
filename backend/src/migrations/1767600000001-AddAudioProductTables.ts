@@ -52,7 +52,17 @@ export class AddAudioProductTables1767600000001 implements MigrationInterface {
     `)
 
     await queryRunner.query(`
-      CREATE INDEX IF NOT EXISTS "idx_audio_variant_file_variant" ON "audio_variant_file" ("variant_id")
+	DO $$
+  BEGIN
+    IF EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_name = 'audio_variant_file' AND column_name = 'variant_id'
+    ) THEN
+      CREATE INDEX IF NOT EXISTS "idx_audio_variant_file_variant"
+      ON "audio_variant_file" ("variant_id");
+    END IF;
+  END
+  $$;
     `)
   }
 
