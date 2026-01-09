@@ -38,9 +38,8 @@ const menuItems: MenuItem[] = [
   {
     href: "/content",
     label: "Content",
-    permission: { resource: "audio", action: "view" },
     children: [
-      { href: "/content/audio", label: "Audio-Dateien", permission: { resource: "audio", action: "view" } },
+      { href: "/content/audio", label: "Audio-Dateien" },
       { href: "/content/license-models", label: "Lizenzmodelle", permission: { resource: "license-models", action: "view" } },
       { href: "/content/categories", label: "Kategorien", permission: { resource: "categories", action: "view" } },
       { href: "/content/tags", label: "Tags", permission: { resource: "tags", action: "view" } },
@@ -283,9 +282,11 @@ export default function RootLayout({
 
       // Also accept explicit admin flag in token payload
       const admin = roleNames.includes('admin') || payload.isAdmin === true
-
-      // If token does not indicate admin, treat as unauthenticated
-      if (!admin) {
+      
+      // Allow access for admin, vendor, and other roles with appropriate permissions
+      const hasAdminAccess = admin || roleNames.includes('vendor') || permissions.length > 0
+      
+      if (!hasAdminAccess) {
         localStorage.removeItem('admin_auth_token')
         router.push('/login')
         setLoading(false)

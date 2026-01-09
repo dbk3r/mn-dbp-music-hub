@@ -61,6 +61,9 @@ export class AudioFile {
   @Column({ name: "cover_size", type: "int", nullable: true })
   coverSize: number | null;
 
+  @Column({ name: "uploaded_by", type: "varchar", nullable: true })
+  uploadedBy: string | null;
+
   @CreateDateColumn({ name: "created_at" })
   createdAt: Date;
 }

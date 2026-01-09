@@ -79,7 +79,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 		const token = jwt.sign({
 			userId: customer.id,
 			email: customer.email,
-			roles: (customer as any).roles ? (customer as any).roles.map((r: any) => r.name) : undefined,
+			roles: (customer as any).roles ? (customer as any).roles.map((r: any) => ({
+				name: r.name,
+				permissions: r.permissions || []
+			})) : [],
 		}, JWT_SECRET, { expiresIn: "7d" })
 
 		if (!res.headersSent) {

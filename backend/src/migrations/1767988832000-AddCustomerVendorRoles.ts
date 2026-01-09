@@ -39,6 +39,7 @@ export class AddCustomerVendorRoles1767988832000 implements MigrationInterface {
       INSERT INTO "permission" ("resource", "action", "description") VALUES
       ('audio', 'create', 'Audio-Dateien erstellen'),
       ('audio', 'edit', 'Audio-Dateien bearbeiten'),
+      ('audio', 'view_own', 'Eigene Audio-Dateien anzeigen'),
       ('audio', 'view_all', 'Alle Audio-Dateien anzeigen')
       ON CONFLICT (resource, action) DO NOTHING
     `)
@@ -51,7 +52,7 @@ export class AddCustomerVendorRoles1767988832000 implements MigrationInterface {
       WHERE r.name = 'vendor' 
         AND (
           (p.resource = 'products' AND p.action IN ('view', 'create', 'edit'))
-          OR (p.resource = 'audio' AND p.action IN ('view_all', 'create', 'edit'))
+          OR (p.resource = 'audio' AND p.action IN ('view_own', 'create', 'edit'))
           OR (p.resource = 'orders' AND p.action = 'view_own')
         )
       ON CONFLICT DO NOTHING
