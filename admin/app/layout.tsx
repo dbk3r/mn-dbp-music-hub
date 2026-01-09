@@ -57,6 +57,7 @@ const menuItems: MenuItem[] = [
       { href: "/settings/license-template", label: "Audio-Lizenz Template", permission: { resource: "settings", action: "edit" } },
       { href: "/settings/email-template", label: "E-Mail Template", permission: { resource: "settings", action: "edit" } },
       { href: "/settings/roles", label: "Rollenverwaltung", permission: { resource: "admin", action: "manage" } },
+      { href: "/settings/profile", label: "Mein Profil" },
       { href: "/users", label: "Benutzerverwaltung", permission: { resource: "users", action: "view" } },
     ],
   },

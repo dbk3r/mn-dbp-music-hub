@@ -90,6 +90,15 @@ export default function CheckoutPage() {
   const [totalCents, setTotalCents] = useState<number | undefined>(undefined)
   const [paymentMethodsAvailable, setPaymentMethodsAvailable] = useState(false)
   const [checkingPayment, setCheckingPayment] = useState(true)
+  
+  const [firstName, setFirstName] = useState("")
+  const [lastName, setLastName] = useState("")
+  const [address1, setAddress1] = useState("")
+  const [city, setCity] = useState("")
+  const [postalCode, setPostalCode] = useState("")
+  const [countryCode, setCountryCode] = useState("DE")
+  const [profileLoaded, setProfileLoaded] = useState(false)
+  
   const TAX_RATE = 0.19
 
   useEffect(() => {
@@ -101,6 +110,27 @@ export default function CheckoutPage() {
       }
     } catch (e) {
       // ignore
+    }
+    
+    // Load user profile
+    const token = localStorage.getItem('user_token')
+    if (token) {
+      fetch('/custom/profile', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+        .then(r => r.json())
+        .then(data => {
+          setFirstName(data.first_name || "")
+          setLastName(data.last_name || "")
+          setAddress1(data.address?.address_1 || "")
+          setCity(data.address?.city || "")
+          setPostalCode(data.address?.postal_code || "")
+          setCountryCode(data.address?.country_code || "DE")
+          setProfileLoaded(true)
+        })
+        .catch(() => setProfileLoaded(true))
+    } else {
+      setProfileLoaded(true)
     }
   }, [])
 
@@ -131,11 +161,27 @@ export default function CheckoutPage() {
       return
     }
 
+    // Validate required fields
+    if (!firstName.trim() || !lastName.trim() || !address1.trim() || !city.trim() || !postalCode.trim()) {
+      alert('Bitte füllen Sie alle Pflichtfelder aus.')
+      return
+    }
+
     try {
       const r = await fetch('/custom/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ items: cart.map(c => ({ audio_id: c.audioId, license_model_id: c.licenseModelId })) }),
+        body: JSON.stringify({ 
+          items: cart.map(c => ({ audio_id: c.audioId, license_model_id: c.licenseModelId })),
+          billing_address: {
+            first_name: firstName,
+            last_name: lastName,
+            address_1: address1,
+            city: city,
+            postal_code: postalCode,
+            country_code: countryCode
+          }
+        }),
       })
 
       if (!r.ok) { alert('Bestellung konnte nicht erstellt werden'); return }
@@ -157,7 +203,86 @@ export default function CheckoutPage() {
         <p>Ihr Warenkorb ist leer.</p>
       ) : (
         <div>
+          {/* Billing Address Form */}
+          <div style={{ border: '1px solid #eee', padding: 20, borderRadius: 8, marginBottom: 20, background: '#f9f9f9' }}>
+            <h2 style={{ marginTop: 0, marginBottom: 16, fontSize: 18 }}>Rechnungsadresse</h2>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 600 }}>Vorname *</label>
+                <input
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  required
+                  style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 4, fontSize: 14 }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 600 }}>Nachname *</label>
+                <input
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  required
+                  style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 4, fontSize: 14 }}
+                />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 600 }}>Straße und Hausnummer *</label>
+              <input
+                type="text"
+                value={address1}
+                onChange={(e) => setAddress1(e.target.value)}
+                required
+                style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 4, fontSize: 14 }}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 12, marginBottom: 12 }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 600 }}>PLZ *</label>
+                <input
+                  type="text"
+                  value={postalCode}
+                  onChange={(e) => setPostalCode(e.target.value)}
+                  required
+                  style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 4, fontSize: 14 }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 600 }}>Ort *</label>
+                <input
+                  type="text"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  required
+                  style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 4, fontSize: 14 }}
+                />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 0 }}>
+              <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 600 }}>Land *</label>
+              <select
+                value={countryCode}
+                onChange={(e) => setCountryCode(e.target.value)}
+                style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 4, fontSize: 14 }}
+              >
+                <option value="DE">Deutschland</option>
+                <option value="AT">Österreich</option>
+                <option value="CH">Schweiz</option>
+                <option value="US">USA</option>
+                <option value="GB">Vereinigtes Königreich</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Order Summary */}
           <div style={{ border: '1px solid #eee', padding: 12, borderRadius: 8 }}>
+            <h2 style={{ marginTop: 0, marginBottom: 12, fontSize: 18 }}>Bestellübersicht</h2>
             {cart.map((i, idx) => (
               <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #fafafa' }}>
                 <div>
