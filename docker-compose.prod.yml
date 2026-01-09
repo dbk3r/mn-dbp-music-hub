@@ -1,0 +1,103 @@
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: medusa
+      POSTGRES_PASSWORD: medusa
+      POSTGRES_DB: medusa
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile  
+    image: backend:prod
+    working_dir: /app
+    command: sh -c "command -v ffmpeg >/dev/null 2>&1 || (apt-get update && apt-get install -y ffmpeg); yarn install && yarn build && CHOKIDAR_USEPOLLING=false WATCHPACK_POLLING=false yarn start"
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgres://medusa:medusa@postgres:5432/medusa?sslmode=disable
+      REDIS_URL: redis://redis:6379
+      STORE_CORS: http://localhost:3000
+      ADMIN_CORS: http://localhost:5173,http://localhost:9000
+      AUTH_CORS: http://localhost:5173,http://localhost:9000,http://localhost:8000
+      PGSSLMODE: disable
+      AUDIO_UPLOAD_DIR: /app/uploads      
+      ADMIN_EMAIL: bk.pc@gmx.de
+      ADMIN_PASSWORD: nulleins
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./backend:/app
+      - ./uploads:/app/uploads
+
+    ports:
+      - "9000:9000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+
+  frontend:
+    image: node:20
+    working_dir: /app
+    command: sh -c "yarn install && yarn start -- -H 0.0.0.0 -p 3000"
+    environment:
+      BACKEND_URL: http://backend:9000
+    env_file:
+      - ./frontend/.env
+    depends_on:
+      backend:
+        condition: service_healthy
+    volumes:
+      - ./frontend:/app
+    ports:
+      - "3000:3000"
+
+  admin:
+    image: node:20
+    working_dir: /app
+    command: sh -c "yarn install && yarn start -- -H 0.0.0.0 -p 7000"
+    environment:
+      NEXT_PUBLIC_MEDUSA_BACKEND_URL: http://backend:9000
+      NEXT_PUBLIC_BASE_PATH: /dbp-admin
+      MEDUSA_BACKEND_INTERNAL_URL: http://backend:9000     
+    env_file:
+      - ./admin/.env
+    depends_on:
+      backend:
+        condition: service_healthy
+    volumes:
+      - ./admin:/app
+    ports:
+      - "7001:7000"
+
+  haproxy:
+    image: haproxy:2.9
+    depends_on:
+      - frontend
+      - admin
+    ports:
+      - "80:80"
+    volumes:
+      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+
+volumes:
+  pg_data:
+  redis_data:
+  # backend_uploads: (removed — uploads persisted to ./uploads on host)
