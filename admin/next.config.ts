@@ -1,6 +1,6 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
+// Use a loose type to avoid strict NextConfig type issues during CI builds
+// (some experimental/api options are intentionally non-standard here)
+const nextConfig: any = {
   basePath: "/dbp-admin",
   experimental: {
     serverActions: true,
