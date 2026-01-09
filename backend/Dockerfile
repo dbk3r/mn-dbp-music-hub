@@ -28,6 +28,8 @@ COPY --from=builder /app/node_modules ./node_modules
 # Medusa's TypeScript build output is in `./.medusa/server` (see tsconfig.json outDir)
 COPY --from=builder /app/.medusa/server ./.medusa/server
 COPY --from=builder /app/medusa-config.js ./medusa-config.js
+# Also copy the built admin/public files to the expected public/admin path
+COPY --from=builder /app/.medusa/server/public ./public
 
 # Use yarn start so package.json start script is respected
 CMD ["yarn", "start"]
