@@ -2,14 +2,15 @@ import { backendUrl, getBackendToken } from "../_backend"
 
 export async function POST(req: Request) {
   try {
-    const token = await getBackendToken()
     const auth = req.headers.get("authorization")
+    const token = await getBackendToken()
     const headers: Record<string, string> = {}
     
-    if (token) {
-      headers.Authorization = `Bearer ${token}`
-    } else if (auth) {
+    // Prefer user token from client over service token
+    if (auth) {
       headers.Authorization = auth
+    } else if (token) {
+      headers.Authorization = `Bearer ${token}`
     }
 
     const formData = await req.formData()
@@ -38,14 +39,15 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
-    const token = await getBackendToken()
     const auth = req.headers.get("authorization")
+    const token = await getBackendToken()
     const headers: Record<string, string> = {}
     
-    if (token) {
-      headers.Authorization = `Bearer ${token}`
-    } else if (auth) {
+    // Prefer user token from client over service token
+    if (auth) {
       headers.Authorization = auth
+    } else if (token) {
+      headers.Authorization = `Bearer ${token}`
     }
 
     const target = backendUrl("/custom/admin/avatar")
