@@ -25,6 +25,8 @@ RUN yarn install --frozen-lockfile --production=true --ignore-scripts
 # Medusa's TypeScript build output is in `./.medusa/server` (see tsconfig.json outDir)
 COPY --from=builder /app/.medusa/server ./.medusa/server
 COPY --from=builder /app/medusa-config.js ./medusa-config.js
+# Some runtime tooling may expect tsconfig.json to exist; copy it from the builder
+COPY --from=builder /app/tsconfig.json ./tsconfig.json
 
 # Start Medusa
 CMD ["medusa", "start"]
