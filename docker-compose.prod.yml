@@ -25,18 +25,7 @@ services:
       dockerfile: Dockerfile  
     image: backend:prod
     working_dir: /app
-    command: sh -c "yarn start"
-    environment:
-      NODE_ENV: production
-      DATABASE_URL: postgres://medusa:medusa@postgres:5432/medusa?sslmode=disable
-      REDIS_URL: redis://redis:6379
-      STORE_CORS: http://localhost:3000
-      ADMIN_CORS: http://localhost:5173,http://localhost:9000
-      AUTH_CORS: http://localhost:5173,http://localhost:9000,http://localhost:8000
-      PGSSLMODE: disable
-      AUDIO_UPLOAD_DIR: /app/uploads      
-      ADMIN_EMAIL: bk.pc@gmx.de
-      ADMIN_PASSWORD: nulleins
+    command: sh -c "yarn start"        
     env_file:
       - ./backend/.env
     depends_on:
