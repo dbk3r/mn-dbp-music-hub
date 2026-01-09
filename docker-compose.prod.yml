@@ -35,6 +35,7 @@ services:
       - postgres
       - redis
     volumes:
+      - ./backend:/app
       - ./uploads:/app/uploads
     networks:
       - mn-dbp-net
