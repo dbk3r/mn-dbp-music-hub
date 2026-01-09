@@ -122,7 +122,7 @@ export default function AudioPage() {
     variants.forEach((v) => {
       if (!variantFiles.has(v.id)) {
         const token = localStorage.getItem('admin_auth_token')
-        const headers = token ? { Authorization: `Bearer ${token}` } : {}
+        const headers = token ? { Authorization: `Bearer ${token}` } : undefined
         fetch(adminApiUrl(`/admin/audio/${selected.id}/variants/${v.id}/files`), { headers })
           .then((r) => r.json())
           .then((data) => {
