@@ -27,7 +27,7 @@ services:
     working_dir: /app
     command: sh -c "yarn start"
     environment:
-      NODE_ENV: development
+      NODE_ENV: production
       DATABASE_URL: postgres://medusa:medusa@postgres:5432/medusa?sslmode=disable
       REDIS_URL: redis://redis:6379
       STORE_CORS: http://localhost:3000
