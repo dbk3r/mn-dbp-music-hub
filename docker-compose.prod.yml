@@ -28,14 +28,13 @@ services:
     image: backend:prod
     working_dir: /app
     # Use the runtime image's start command only; do not install/build at container start
-    command: sh -c "yarn install && yarn build && CHOKIDAR_USEPOLLING=false WATCHPACK_POLLING=false yarn start"
+    command: sh -c "yarn start"
     env_file:
       - ./backend/.env
     depends_on:
       - postgres
       - redis
-    volumes:
-      - ./backend:/app
+    volumes:      
       - ./uploads:/app/uploads
     networks:
       - mn-dbp-net
