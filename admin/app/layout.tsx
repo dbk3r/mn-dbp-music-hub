@@ -108,10 +108,10 @@ export default function RootLayout({
   useEffect(() => {
     if (typeof window === 'undefined') return
     const originalFetch = window.fetch
-    window.fetch = async (input: RequestInfo, init?: RequestInit) => {
+    ;(window as any).fetch = async (...args: any[]) => {
       try {
-        const urlArg = input
-        const opts = init || {}
+        const urlArg = args[0]
+        const opts = args[1] || {}
         const method = (opts.method || 'GET').toString().toUpperCase()
         const headers = new Headers(opts.headers || {})
         const hadAuthHeader = headers.has('Authorization')
@@ -144,7 +144,7 @@ export default function RootLayout({
           // ignore parsing errors and continue
         }
 
-        const res: Response = await originalFetch(input, init)
+        const res: Response = await (originalFetch as any)(...args)
 
         // Logging to help debug why we get redirected on specific requests
         try {
