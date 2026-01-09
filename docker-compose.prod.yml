@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:15
+    image: postgres
     environment:
       POSTGRES_USER: medusa
       POSTGRES_PASSWORD: medusa
