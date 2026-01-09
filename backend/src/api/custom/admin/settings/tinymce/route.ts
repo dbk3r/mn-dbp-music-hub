@@ -1,7 +1,7 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-import { requireAdmin } from "../../../middlewares/auth"
-import { AppDataSource } from "../../../../datasource/data-source"
-import { SystemSettingsService } from "../../../../services/system-settings-service"
+import { requireAdmin } from "../../../../middlewares/auth"
+import { AppDataSource } from "../../../../../datasource/data-source"
+import { SystemSettingsService } from "../../../../../services/system-settings-service"
 import jwt from "jsonwebtoken"
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
