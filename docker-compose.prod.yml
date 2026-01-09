@@ -16,6 +16,8 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    networks:
+      - mn-dbp-net
 
   backend:
     build:
@@ -42,6 +44,8 @@ services:
       - redis
     volumes:
       - ./uploads:/app/uploads
+    networks:
+      - mn-dbp-net
 
     ports:
       - "9000:9000"
@@ -67,6 +71,8 @@ services:
       - ./frontend:/app
     ports:
       - "3000:3000"
+    networks:
+      - mn-dbp-net
 
   admin:
     image: node:20
@@ -85,6 +91,8 @@ services:
       - ./admin:/app
     ports:
       - "7001:7000"
+    networks:
+      - mn-dbp-net
 
   haproxy:
     image: haproxy:2.9
@@ -95,8 +103,14 @@ services:
       - "80:80"
     volumes:
       - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    networks:
+      - mn-dbp-net
 
 volumes:
   pg_data:
   redis_data:
   # backend_uploads: (removed — uploads persisted to ./uploads on host)
+
+networks:
+  mn-dbp-net:
+    driver: bridge
