@@ -19,5 +19,11 @@ ENV NODE_ENV=production
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/yarn.lock ./yarn.lock
 RUN apt-get update && apt-get install -y ffmpeg
+# Install only production deps in the runtime image
 RUN yarn install --frozen-lockfile --production=true --ignore-scripts
-RUN yarn build 
+# Copy compiled output and runtime config from the builder stage
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/medusa-config.js ./medusa-config.js
+
+# Start Medusa
+CMD ["medusa", "start"]
