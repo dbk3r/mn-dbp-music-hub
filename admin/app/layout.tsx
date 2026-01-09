@@ -108,11 +108,11 @@ export default function RootLayout({
   useEffect(() => {
     if (typeof window === 'undefined') return
     const originalFetch = window.fetch
-    window.fetch = async (...args: any[]) => {
+    window.fetch = async (input: RequestInfo, init?: RequestInit) => {
       try {
-        const urlArg = args[0]
-        const opts = args[1] || {}
-        const method = (opts.method || 'GET').toUpperCase()
+        const urlArg = input
+        const opts = init || {}
+        const method = (opts.method || 'GET').toString().toUpperCase()
         const headers = new Headers(opts.headers || {})
         const hadAuthHeader = headers.has('Authorization')
         const tokenPresent = !!localStorage.getItem('admin_auth_token')
@@ -144,7 +144,7 @@ export default function RootLayout({
           // ignore parsing errors and continue
         }
 
-        const res: Response = await originalFetch(...args)
+        const res: Response = await originalFetch(input, init)
 
         // Logging to help debug why we get redirected on specific requests
         try {
