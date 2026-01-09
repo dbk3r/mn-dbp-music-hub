@@ -56,7 +56,7 @@ const menuItems: MenuItem[] = [
       { href: "/settings/tinymce", label: "TinyMCE", permission: { resource: "settings", action: "edit" } },
       { href: "/settings/license-template", label: "Audio-Lizenz Template", permission: { resource: "settings", action: "edit" } },
       { href: "/settings/email-template", label: "E-Mail Template", permission: { resource: "settings", action: "edit" } },
-      { href: "/settings/permissions", label: "Berechtigungen", permission: { resource: "admin", action: "manage" } },
+      { href: "/settings/roles", label: "Rollenverwaltung", permission: { resource: "admin", action: "manage" } },
       { href: "/users", label: "Benutzerverwaltung", permission: { resource: "users", action: "view" } },
     ],
   },

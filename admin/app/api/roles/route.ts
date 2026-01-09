@@ -1,22 +1,69 @@
-import { NextRequest, NextResponse } from "next/server";
-import { backendUrl } from "../_backend";
+import { backendUrl, getBackendToken } from "../_backend"
 
-function buildHeadersFromReq(req: Request) {
-  const headers: Record<string, string> = {}
+export async function GET(req: Request) {
   try {
-    const auth = (req as any).headers?.get?.("authorization")
-    if (auth) headers.Authorization = auth
-  } catch (e) {}
-  return headers
+    const token = await getBackendToken()
+    const auth = req.headers.get("authorization")
+    const headers: Record<string, string> = {}
+    
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
+    } else if (auth) {
+      headers.Authorization = auth
+    }
+
+    const target = backendUrl("/custom/admin/roles")
+    const response = await fetch(target, { headers })
+    
+    const text = await response.text()
+    const contentType = response.headers.get("content-type") || "application/json"
+    
+    return new Response(text, { 
+      status: response.status, 
+      headers: { "Content-Type": contentType } 
+    })
+  } catch (err: any) {
+    return new Response(
+      JSON.stringify({ message: "Fehler beim Laden der Rollen", error: String(err) }), 
+      { status: 502, headers: { "Content-Type": "application/json" } }
+    )
+  }
 }
 
-export async function GET(req: NextRequest) {
-  const headers = buildHeadersFromReq(req)
+export async function PATCH(req: Request) {
   try {
-    const res = await fetch(backendUrl("/custom/admin/roles"), { cache: "no-store", headers })
-    const data = await res.json().catch(() => ({}))
-    return NextResponse.json(data, { status: res.status })
-  } catch (e: any) {
-    return NextResponse.json({ message: String(e) }, { status: 502 })
+    const token = await getBackendToken()
+    const auth = req.headers.get("authorization")
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    }
+    
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
+    } else if (auth) {
+      headers.Authorization = auth
+    }
+
+    const body = await req.text()
+    const target = backendUrl("/custom/admin/roles")
+    
+    const response = await fetch(target, {
+      method: "PATCH",
+      headers,
+      body,
+    })
+    
+    const text = await response.text()
+    const contentType = response.headers.get("content-type") || "application/json"
+    
+    return new Response(text, { 
+      status: response.status, 
+      headers: { "Content-Type": contentType } 
+    })
+  } catch (err: any) {
+    return new Response(
+      JSON.stringify({ message: "Fehler beim Aktualisieren der Rolle", error: String(err) }), 
+      { status: 502, headers: { "Content-Type": "application/json" } }
+    )
   }
 }
