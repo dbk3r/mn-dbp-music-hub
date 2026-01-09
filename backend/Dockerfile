@@ -21,8 +21,9 @@ COPY --from=builder /app/yarn.lock ./yarn.lock
 RUN apt-get update && apt-get install -y ffmpeg
 # Install only production deps in the runtime image
 RUN yarn install --frozen-lockfile --production=true --ignore-scripts
-# Copy compiled output and runtime config from the builder stage
-COPY --from=builder /app/dist ./dist
+# Copy compiled Medusa server output and runtime config from the builder stage
+# Medusa's TypeScript build output is in `./.medusa/server` (see tsconfig.json outDir)
+COPY --from=builder /app/.medusa/server ./.medusa/server
 COPY --from=builder /app/medusa-config.js ./medusa-config.js
 
 # Start Medusa
