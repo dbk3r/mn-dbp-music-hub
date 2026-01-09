@@ -54,6 +54,7 @@ const menuItems: MenuItem[] = [
       { href: "/settings/stripe", label: "Stripe", permission: { resource: "admin", action: "manage" } },
       { href: "/settings/tax", label: "Steuern", permission: { resource: "settings", action: "edit" } },
       { href: "/settings/paypal", label: "PayPal", permission: { resource: "settings", action: "edit" } },
+      { href: "/settings/tinymce", label: "TinyMCE", permission: { resource: "settings", action: "edit" } },
       { href: "/settings/license-template", label: "Audio-Lizenz Template", permission: { resource: "settings", action: "edit" } },
       { href: "/settings/email-template", label: "E-Mail Template", permission: { resource: "settings", action: "edit" } },
       { href: "/users", label: "Benutzerverwaltung", permission: { resource: "users", action: "view" } },

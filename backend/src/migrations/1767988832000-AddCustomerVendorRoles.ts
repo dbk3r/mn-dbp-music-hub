@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from "typeorm"
 
-export class AddCustomerVendorRoles1736428800000 implements MigrationInterface {
+export class AddCustomerVendorRoles1767988832000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Customer und Vendor Rollen hinzufügen
     await queryRunner.query(`
