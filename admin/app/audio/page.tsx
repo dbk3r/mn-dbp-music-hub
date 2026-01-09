@@ -204,7 +204,8 @@ export default function AudioPage() {
       // Upload audio file first using admin API and include auth token
       const uploadUrl = `${adminApiUrl("/audio")}?${params.toString()}`
       const token = localStorage.getItem("admin_auth_token")
-      const authHeaders = token ? { Authorization: `Bearer ${token}`, "Content-Type": file.type } : { "Content-Type": file.type }
+      const authHeaders: Record<string, string> = { "Content-Type": file.type }
+      if (token) authHeaders.Authorization = `Bearer ${token}`
 
       const audioRes = await fetch(uploadUrl, {
         method: "POST",
@@ -227,9 +228,12 @@ export default function AudioPage() {
         coverParams.set("filename", cover.name);
         coverParams.set("mime", cover.type);
 
+        const coverHeaders: Record<string, string> = { "Content-Type": cover.type }
+        if (token) coverHeaders.Authorization = `Bearer ${token}`
+
         await fetch(`${adminApiUrl(`/audio/${audioId}/cover`)}?${coverParams.toString()}`, {
           method: "POST",
-          headers: token ? { Authorization: `Bearer ${token}`, "Content-Type": cover.type } : { "Content-Type": cover.type },
+          headers: coverHeaders,
           body: cover,
         });
       }
@@ -309,8 +313,9 @@ export default function AudioPage() {
     setError(null);
     try {
       const token = localStorage.getItem("admin_auth_token");
-      const headers = token ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
-      
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) headers.Authorization = `Bearer ${token}`;
+
       const res = await fetch(`${url}/${selected.id}`, {
         method: "PATCH",
         headers,
