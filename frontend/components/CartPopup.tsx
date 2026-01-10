@@ -151,7 +151,8 @@ function PaymentForm({ orderId, checkoutTotalCents, onSuccess, onClose, billingN
       if (!cardNumberElement) throw new Error("CardNumber element not found")
 
       // Get payment intent
-      const response = await fetch("/custom/checkout/payment", {
+      const backendUrl = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || ""
+      const response = await fetch(`${backendUrl}/custom/checkout/payment`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

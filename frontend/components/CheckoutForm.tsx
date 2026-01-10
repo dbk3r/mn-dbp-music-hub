@@ -60,7 +60,8 @@ export default function CheckoutForm({
     setLoading(true)
     try {
       const token = localStorage.getItem("user_token")
-      const r = await fetch("/custom/checkout", {
+      const backendUrl = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || ""
+      const r = await fetch(`${backendUrl}/custom/checkout`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

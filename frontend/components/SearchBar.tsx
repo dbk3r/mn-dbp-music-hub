@@ -43,17 +43,19 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
   const [licenseModels, setLicenseModels] = useState<LicenseModelItem[]>([])
   // Kategorien, Tags und Lizenzmodelle vom Backend laden
   useEffect(() => {
-    fetch("/custom/categories", { cache: "no-store" })
+    const backendUrl = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || ""
+
+    fetch(`${backendUrl}/custom/categories`, { cache: "no-store" })
       .then(r => r.json())
       .then(data => setCategories(Array.isArray(data) ? data : []))
       .catch(()=>setCategories([]))
 
-    fetch("/custom/tags", { cache: "no-store" })
+    fetch(`${backendUrl}/custom/tags`, { cache: "no-store" })
       .then(r => r.json())
       .then(data => setTags(Array.isArray(data) ? data : []))
       .catch(()=>setTags([]))
 
-    fetch("/custom/license-models", { cache: "no-store" })
+    fetch(`${backendUrl}/custom/license-models`, { cache: "no-store" })
       .then(r => r.json())
       .then((data) => {
         if (!Array.isArray(data)) {

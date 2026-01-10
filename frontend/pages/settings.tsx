@@ -38,18 +38,25 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const backendUrl = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://localhost:9000"
 
   useEffect(() => {
+    // Only run in browser, not during SSR
+    if (typeof window === 'undefined') return
+
     const token = localStorage.getItem("user_token")
     if (!token) {
       router.push("/login")
       return
     }
 
-    fetch("/custom/profile", {
+    fetch(`${backendUrl}/custom/profile`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error('Profile fetch failed')
+        return r.json()
+      })
       .then((data) => {
         setUser(data)
         setFirstName(data.first_name || "")
@@ -72,7 +79,8 @@ export default function SettingsPage() {
 
     try {
       const token = localStorage.getItem("user_token")
-      const r = await fetch("/custom/profile", {
+      const backendUrl = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://localhost:9000"
+      const r = await fetch(`${backendUrl}/custom/profile`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -121,8 +129,9 @@ export default function SettingsPage() {
     try {
       const formData = new FormData()
       formData.append("avatar", file)
+      const backendUrl = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://localhost:9000"
 
-      const r = await fetch("/custom/avatar", {
+      const r = await fetch(`${backendUrl}/custom/avatar`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -152,7 +161,7 @@ export default function SettingsPage() {
     setError("")
 
     try {
-      const r = await fetch("/custom/avatar", {
+      const r = await fetch(`${backendUrl}/custom/avatar`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       })

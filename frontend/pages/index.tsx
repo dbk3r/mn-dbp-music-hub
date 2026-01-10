@@ -100,7 +100,8 @@ export default function MainPage() {
       setCheckoutStatus("loading")
       setCheckoutTotalCents(undefined)
 
-      const r = await fetch("/custom/checkout", {
+      const backendUrl = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || ""
+      const r = await fetch(`${backendUrl}/custom/checkout`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -163,7 +164,8 @@ export default function MainPage() {
     params.set("limit", "20")
     params.set("offset", String(offset))
 
-    const r = await fetch(`/custom/audio/search?${params.toString()}`, { cache: "no-store" })
+    const backendUrl = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || ""
+    const r = await fetch(`${backendUrl}/custom/audio/search?${params.toString()}`, { cache: "no-store" })
     if (!r.ok) {
       throw new Error(`search failed: ${r.status}`)
     }

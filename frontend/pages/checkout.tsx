@@ -35,7 +35,8 @@ function PaymentForm({ orderId, totalCents, onSuccess, onClose }: { orderId: num
       const cardElement = elements.getElement(CardElement)
       if (!cardElement) throw new Error("Card element not found")
 
-      const resp = await fetch("/custom/checkout/payment", {
+      const backendUrl = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || ""
+      const resp = await fetch(`${backendUrl}/custom/checkout/payment`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -102,6 +103,9 @@ export default function CheckoutPage() {
   const TAX_RATE = 0.19
 
   useEffect(() => {
+    // Only run in browser, not during SSR
+    if (typeof window === 'undefined') return
+
     try {
       const raw = localStorage.getItem('cart')
       if (raw) {
@@ -114,11 +118,15 @@ export default function CheckoutPage() {
     
     // Load user profile
     const token = localStorage.getItem('user_token')
+    const backendUrl = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://localhost:9000"
     if (token) {
-      fetch('/custom/profile', {
+      fetch(`${backendUrl}/custom/profile`, {
         headers: { Authorization: `Bearer ${token}` }
       })
-        .then(r => r.json())
+        .then(r => {
+          if (!r.ok) throw new Error('Profile fetch failed')
+          return r.json()
+        })
         .then(data => {
           setFirstName(data.first_name || "")
           setLastName(data.last_name || "")
