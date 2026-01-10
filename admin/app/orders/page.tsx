@@ -14,6 +14,9 @@ type Order = {
   product_titles?: string[] | string
   created_at?: string
   items?: any[]
+  vendor_paid?: boolean
+  vendor_paid_at?: string
+  vendor_paid_by?: string
 }
 
 export default function OrdersPage() {
@@ -90,6 +93,36 @@ export default function OrdersPage() {
     }
   }
 
+  async function toggleVendorPaid(orderId: string, currentStatus: boolean) {
+    const newStatus = !currentStatus
+    const message = newStatus 
+      ? "Vendor als bezahlt markieren?" 
+      : "Vendor-Bezahlung als unbezahlt markieren?"
+    
+    if (!confirm(message)) return
+    
+    try {
+      const token = typeof window !== "undefined" ? localStorage.getItem("admin_auth_token") : null
+      const r = await fetch(`/api/orders/${orderId}/vendor-paid`, {
+        method: "PATCH",
+        headers: { 
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}) 
+        },
+        body: JSON.stringify({ vendor_paid: newStatus }),
+      })
+      if (!r.ok) {
+        const txt = await r.text()
+        throw new Error(txt || `Status ${r.status}`)
+      }
+      const result = await r.json()
+      alert(result.message || "Status erfolgreich aktualisiert")
+      await load()
+    } catch (e: any) {
+      alert("Fehler beim Aktualisieren: " + (e.message || String(e)))
+    }
+  }
+
   const filteredOrders = useMemo(() => {
     if (!orders || !search.trim()) return orders
     const term = search.toLowerCase()
@@ -147,6 +180,7 @@ export default function OrdersPage() {
               <th style={{ textAlign: "left", padding: 8 }}>E-Mail</th>
               <th style={{ textAlign: "left", padding: 8 }}>Produkt(e)</th>
               <th style={{ textAlign: "left", padding: 8 }}>Status</th>
+              <th style={{ textAlign: "left", padding: 8 }}>Vendor bezahlt</th>
               <th style={{ textAlign: "right", padding: 8 }}>Total</th>
               <th style={{ textAlign: "left", padding: 8 }}>Erstellt</th>
               <th style={{ textAlign: "left", padding: 8 }}>Aktionen</th>
@@ -209,6 +243,25 @@ export default function OrdersPage() {
                   )}
                 </td>
                 <td style={{ padding: 8, verticalAlign: "top" }}>{o.status ?? "-"}</td>
+                <td style={{ padding: 8, verticalAlign: "top" }}>
+                  <button
+                    onClick={() => toggleVendorPaid(o.id, o.vendor_paid ?? false)}
+                    style={{
+                      padding: "4px 12px",
+                      borderRadius: 4,
+                      border: "1px solid",
+                      cursor: "pointer",
+                      fontSize: 12,
+                      fontWeight: 500,
+                      backgroundColor: o.vendor_paid ? "#d1fae5" : "#fef3c7",
+                      borderColor: o.vendor_paid ? "#10b981" : "#f59e0b",
+                      color: o.vendor_paid ? "#065f46" : "#92400e",
+                    }}
+                    title={o.vendor_paid_at ? `Bezahlt am ${new Date(o.vendor_paid_at).toLocaleString()}` : ""}
+                  >
+                    {o.vendor_paid ? "✓ Bezahlt" : "⏳ Offen"}
+                  </button>
+                </td>
                 <td style={{ padding: 8, textAlign: "right", verticalAlign: "top" }}>{o.totalPriceCents != null ? (o.totalPriceCents / 100).toFixed(2) + " " + (o.currency ?? "EUR") : "-"}</td>
                 <td style={{ padding: 8, verticalAlign: "top" }}>{o.created_at ? new Date(o.created_at).toLocaleString() : "-"}</td>
                 <td style={{ padding: 8, verticalAlign: "top" }}>

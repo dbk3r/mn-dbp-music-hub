@@ -65,6 +65,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     // independently of TypeORM mapping issues.
     const rows: any[] = await AppDataSource.query(`
       SELECT o.id, o.order_id, o.license_number, o.status, o."totalPriceCents", o."currencyCode", o.items, o."createdAt",
+             o.vendor_paid, o.vendor_paid_at, o.vendor_paid_by,
              c.email as customer_email, c.first_name as customer_first_name, c.last_name as customer_last_name
       FROM orders o
       LEFT JOIN customer c ON c.id::text = o."customerId"::text
@@ -170,6 +171,9 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
         createdAt: r.createdAt,
         items: enrichedItems,
         product_titles: productTitles,
+        vendor_paid: r.vendor_paid || false,
+        vendor_paid_at: r.vendor_paid_at || null,
+        vendor_paid_by: r.vendor_paid_by || null,
       }
     }))
 
@@ -185,7 +189,10 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       customer_name: o.customer_name || null,
       product_titles: Array.isArray(o.product_titles) ? o.product_titles : (o.product_titles ? String(o.product_titles).split(',').map((s: string) => s.trim()) : []),
       created_at: o.createdAt || o.createdat || null,
-      items: o.items || []
+      items: o.items || [],
+      vendor_paid: o.vendor_paid || false,
+      vendor_paid_at: o.vendor_paid_at || null,
+      vendor_paid_by: o.vendor_paid_by || null,
     }))
 
     return res.json(out)
